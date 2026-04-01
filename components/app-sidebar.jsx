@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils"
 import { useRole } from "@/lib/role-context"
+import { useAuth } from "@/lib/auth-context"
 import {
   LayoutDashboard,
   CalendarDays,
@@ -51,7 +52,8 @@ export function AppSidebar({ isOpen = true, onClose }) {
       onClose()
     }
   }
-  const { currentUser, logout } = useRole()
+  const { currentUser } = useRole()
+  const { logout } = useAuth()
   const items = navConfig[currentUser.role]
   const initials = currentUser.name
     .split(" ")

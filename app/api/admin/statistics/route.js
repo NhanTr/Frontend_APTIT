@@ -1,0 +1,34 @@
+export async function GET(req) {
+  try {
+    const authHeader = req.headers.get('authorization')
+    const token = authHeader?.replace('Bearer ', '')
+
+    if (!token) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401 }
+      )
+    }
+
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'
+    const response = await fetch(`${backendUrl}/api/v1/admin/statistics`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      return new Response(
+        JSON.stringify({ error: 'Failed to fetch statistics' }),
+        { status: response.status }
+      )
+    }
+
+    const data = await response.json()
+    return new Response(JSON.stringify(data), { status: 200 })
+  } catch (error) {
+    console.error('Get statistics error:', error)
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 })
+  }
+}

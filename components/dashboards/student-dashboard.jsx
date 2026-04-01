@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { mockActivities, mockAnnouncements } from "@/lib/mock-data"
+import { useRole } from "@/lib/role-context"
+import { mockAnnouncements } from "@/lib/mock-data"
 import { StatCard } from "@/components/stat-card"
 import { StatusBadge, CategoryBadge } from "@/components/status-badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   GraduationCap,
   CalendarDays,
@@ -20,105 +22,228 @@ import {
   AlertCircle,
 } from "lucide-react"
 
-const enrolledIds = ["a1", "a4"]
-const enrolledActivities = mockActivities.filter((a) => enrolledIds.includes(a.id))
-const availableActivities = mockActivities.filter(
-  (a) => !enrolledIds.includes(a.id) && a.status !== "cancelled" && a.status !== "completed"
-)
-
-function BrowseActivities() {
-  const [enrolled, setEnrolled] = useState(enrolledIds)
+function BrowseActivities({ activities, enrolled, onEnroll, onUnenroll }) {
+  const [localEnrolled, setLocalEnrolled] = useState(enrolled)
+  const [selectedActivity, setSelectedActivity] = useState(null)
 
   function handleEnroll(activityId) {
-    setEnrolled((prev) => [...prev, activityId])
+    setLocalEnrolled((prev) => [...prev, activityId])
+    onEnroll(activityId)
   }
 
   function handleUnenroll(activityId) {
-    setEnrolled((prev) => prev.filter((id) => id !== activityId))
+    setLocalEnrolled((prev) => prev.filter((id) => id !== activityId))
+    onUnenroll(activityId)
   }
 
+  const availableActivities = activities.filter(
+    (a) => !localEnrolled.includes(a.id) && a.status !== "cancelled" && a.status !== "completed"
+  )
+
   return (
-    <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {mockActivities
-        .filter((a) => a.status !== "cancelled")
-        .map((activity) => {
-          const isEnrolled = enrolled.includes(activity.id)
-          const isFull = activity.enrolled >= activity.capacity
-          return (
-            <Card key={activity.id} className="bg-card flex flex-col">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <CategoryBadge category={activity.category} />
-                  <StatusBadge status={activity.status} />
+    <>
+      <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {activities
+          .filter((a) => a.status !== "cancelled")
+          .map((activity) => {
+            const isEnrolled = localEnrolled.includes(activity.id)
+            const isFull = activity.enrolled >= activity.capacity
+            return (
+              <Card 
+                key={activity.id} 
+                className="bg-card flex flex-col cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => setSelectedActivity(activity)}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <CategoryBadge category={activity.category} />
+                    <StatusBadge status={activity.status} />
+                  </div>
+                  <CardTitle className="text-sm sm:text-base text-card-foreground mt-2">{activity.title}</CardTitle>
+                  <CardDescription className="leading-relaxed text-xs sm:text-sm line-clamp-2">{activity.description}</CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-1 flex-col justify-end">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="size-3" />
+                        {activity.date}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Clock className="size-3" />
+                        {activity.time}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <MapPin className="size-3" />
+                      <span className="truncate">{activity.location}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Users className="size-3" />
+                      <span className="truncate">{activity.instructor}</span>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="text-muted-foreground">Spots</span>
+                        <span className="font-medium text-card-foreground">
+                          {activity.capacity - activity.enrolled} left
+                        </span>
+                      </div>
+                      <Progress value={(activity.enrolled / activity.capacity) * 100} className="h-1.5" />
+                    </div>
+                    {isEnrolled ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full mt-1 border-destructive/30 text-destructive hover:bg-destructive/10"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleUnenroll(activity.id)
+                        }}
+                      >
+                        Unenroll
+                      </Button>
+                    ) : activity.status === "completed" ? (
+                      <Button variant="outline" size="sm" className="w-full mt-1" disabled>
+                        Completed
+                      </Button>
+                    ) : isFull ? (
+                      <Button variant="outline" size="sm" className="w-full mt-1" disabled>
+                        Full
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        className="w-full mt-1 bg-primary text-primary-foreground hover:bg-primary/90"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleEnroll(activity.id)
+                        }}
+                      >
+                        Enroll Now
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+      </div>
+
+      {/* Activity Details Modal */}
+      <Dialog open={!!selectedActivity} onOpenChange={(open) => !open && setSelectedActivity(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          {selectedActivity && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <CategoryBadge category={selectedActivity.category} />
+                  <StatusBadge status={selectedActivity.status} />
                 </div>
-                <CardTitle className="text-sm sm:text-base text-card-foreground mt-2">{activity.title}</CardTitle>
-                <CardDescription className="leading-relaxed text-xs sm:text-sm line-clamp-2">{activity.description}</CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-1 flex-col justify-end">
-                <div className="flex flex-col gap-2">
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="size-3" />
-                      {activity.date}
+                <DialogTitle className="text-xl mt-2">{selectedActivity.title}</DialogTitle>
+                <DialogDescription className="text-base leading-relaxed">
+                  {selectedActivity.description}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="flex flex-col gap-4">
+                {/* Activity Info */}
+                <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
+                  <div className="flex items-start gap-3">
+                    <Calendar className="size-5 text-primary mt-1 shrink-0" />
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase">Date</p>
+                      <p className="text-sm font-medium text-card-foreground">{selectedActivity.date}</p>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Clock className="size-3" />
-                      {activity.time}
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <Clock className="size-5 text-primary mt-1 shrink-0" />
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase">Time</p>
+                      <p className="text-sm font-medium text-card-foreground">{selectedActivity.time}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <MapPin className="size-3" />
-                    <span className="truncate">{activity.location}</span>
-                  </div>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Users className="size-3" />
-                    <span className="truncate">{activity.instructor}</span>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-muted-foreground">Spots</span>
-                      <span className="font-medium text-card-foreground">
-                        {activity.capacity - activity.enrolled} left
-                      </span>
+
+                  <div className="flex items-start gap-3">
+                    <MapPin className="size-5 text-primary mt-1 shrink-0" />
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase">Location</p>
+                      <p className="text-sm font-medium text-card-foreground">{selectedActivity.location}</p>
                     </div>
-                    <Progress value={(activity.enrolled / activity.capacity) * 100} className="h-1.5" />
                   </div>
-                  {isEnrolled ? (
+
+                  <div className="flex items-start gap-3">
+                    <Users className="size-5 text-primary mt-1 shrink-0" />
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase">Instructor</p>
+                      <p className="text-sm font-medium text-card-foreground">{selectedActivity.instructor}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Capacity Info */}
+                <div className="bg-secondary/30 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-card-foreground">Enrollment Status</span>
+                    <span className="text-sm font-medium text-card-foreground">
+                      {selectedActivity.enrolled} / {selectedActivity.capacity}
+                    </span>
+                  </div>
+                  <Progress 
+                    value={(selectedActivity.enrolled / selectedActivity.capacity) * 100} 
+                    className="h-2"
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {selectedActivity.capacity - selectedActivity.enrolled} spots remaining
+                  </p>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2">
+                  {localEnrolled.includes(selectedActivity.id) ? (
                     <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full mt-1 border-destructive/30 text-destructive hover:bg-destructive/10"
-                      onClick={() => handleUnenroll(activity.id)}
+                      variant="destructive"
+                      className="flex-1"
+                      onClick={() => {
+                        handleUnenroll(selectedActivity.id)
+                        setSelectedActivity(null)
+                      }}
                     >
-                      Unenroll
+                      Unenroll from Activity
                     </Button>
-                  ) : activity.status === "completed" ? (
-                    <Button variant="outline" size="sm" className="w-full mt-1" disabled>
-                      Completed
+                  ) : selectedActivity.status === "completed" ? (
+                    <Button disabled className="flex-1">
+                      Activity Completed
                     </Button>
-                  ) : isFull ? (
-                    <Button variant="outline" size="sm" className="w-full mt-1" disabled>
-                      Full
+                  ) : selectedActivity.enrolled >= selectedActivity.capacity ? (
+                    <Button disabled className="flex-1">
+                      Activity Full
                     </Button>
                   ) : (
                     <Button
-                      size="sm"
-                      className="w-full mt-1 bg-primary text-primary-foreground hover:bg-primary/90"
-                      onClick={() => handleEnroll(activity.id)}
+                      className="flex-1 bg-primary"
+                      onClick={() => {
+                        handleEnroll(selectedActivity.id)
+                        setSelectedActivity(null)
+                      }}
                     >
                       Enroll Now
                     </Button>
                   )}
                 </div>
-              </CardContent>
-            </Card>
-          )
-        })}
-    </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 
-function MyEnrollments() {
+function MyEnrollments({ activities, enrolled }) {
+  const enrolledActivities = activities.filter((a) => enrolled.includes(a.id))
+  
   return (
     <Card>
       <CardHeader>
@@ -209,6 +334,24 @@ function StudentAnnouncements() {
 }
 
 export function StudentDashboard() {
+  const { activities } = useRole()
+  const [enrolled, setEnrolled] = useState([])
+
+  function handleEnroll(activityId) {
+    if (!enrolled.includes(activityId)) {
+      setEnrolled((prev) => [...prev, activityId])
+    }
+  }
+
+  function handleUnenroll(activityId) {
+    setEnrolled((prev) => prev.filter((id) => id !== activityId))
+  }
+
+  const enrolledActivities = activities.filter((a) => enrolled.includes(a.id))
+  const availableActivities = activities.filter(
+    (a) => !enrolled.includes(a.id) && a.status !== "cancelled" && a.status !== "completed"
+  )
+
   return (
     <div className="flex flex-col gap-4 sm:gap-6">
       <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
@@ -246,10 +389,15 @@ export function StudentDashboard() {
           <TabsTrigger value="announcements" className="flex-1 sm:flex-none text-xs sm:text-sm">News</TabsTrigger>
         </TabsList>
         <TabsContent value="browse">
-          <BrowseActivities />
+          <BrowseActivities 
+            activities={activities}
+            enrolled={enrolled}
+            onEnroll={handleEnroll}
+            onUnenroll={handleUnenroll}
+          />
         </TabsContent>
         <TabsContent value="enrollments">
-          <MyEnrollments />
+          <MyEnrollments activities={activities} enrolled={enrolled} />
         </TabsContent>
         <TabsContent value="announcements">
           <StudentAnnouncements />

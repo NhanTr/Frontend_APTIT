@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { RoleProvider, useRole } from "@/lib/role-context"
 import { LoginForm } from "@/components/login-form"
 import { AppSidebar } from "@/components/app-sidebar"
@@ -16,14 +17,39 @@ const dashboardConfig = {
 }
 
 function AppContent() {
-  const { isAuthenticated, currentUser } = useRole()
+  const { isAuthenticated, user, loading } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  if (!isAuthenticated) {
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin inline-block w-8 h-8 border-b-2 border-primary rounded-full"></div>
+          <p className="mt-4 text-muted-foreground">Đang tải...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated || !user) {
     return <LoginForm />
   }
 
-  const { title, subtitle, component: Dashboard } = dashboardConfig[currentUser.role]
+  const config = dashboardConfig[user.role]
+  
+  if (!config) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <h1 className="text-2xl font-bold text-foreground">Lỗi: Role không hợp lệ</h1>
+          <p className="text-muted-foreground">Role: {user.role}</p>
+          <p className="text-sm text-muted-foreground">Vui lòng liên hệ quản trị viên</p>
+        </div>
+      </div>
+    )
+  }
+
+  const { title, subtitle, component: Dashboard } = config
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -44,8 +70,10 @@ function AppContent() {
 
 export default function Page() {
   return (
-    <RoleProvider>
-      <AppContent />
-    </RoleProvider>
+    <AuthProvider>
+      <RoleProvider>
+        <AppContent />
+      </RoleProvider>
+    </AuthProvider>
   )
 }

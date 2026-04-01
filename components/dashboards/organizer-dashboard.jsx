@@ -1,8 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { mockActivities, mockStudents } from "@/lib/mock-data"
 import { useRole } from "@/lib/role-context"
+import { useAuth } from "@/lib/auth-context"
+import { mockStudents } from "@/lib/mock-data"
 import { StatCard } from "@/components/stat-card"
 import { StatusBadge, CategoryBadge } from "@/components/status-badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,12 +28,11 @@ import {
   AlertCircle,
 } from "lucide-react"
 
-const organizerActivities = mockActivities.filter((a) => a.instructorId === "t1")
-const organizerStudentIds = ["s1", "s4", "s3", "s7"]
-const organizerStudents = mockStudents.filter((s) => organizerStudentIds.includes(s.id))
+const organizerStudents = mockStudents.slice(0, 4)
 
 function CreateActivityForm() {
   const { createActivity } = useRole()
+  const { user } = useAuth()
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -219,7 +219,8 @@ function CreateActivityForm() {
 
 function MyActivities() {
   const { activities } = useRole()
-  const myActivities = activities.filter((a) => a.instructorId === "t1")
+  const { user } = useAuth()
+  const myActivities = activities.filter((a) => a.instructorId === user.id)
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -287,7 +288,8 @@ function MyActivities() {
 
 function MyStudents() {
   const { activities } = useRole()
-  const myActivities = activities.filter((a) => a.instructorId === "t1")
+  const { user } = useAuth()
+  const myActivities = activities.filter((a) => a.instructorId === user.id)
   
   return (
     <Card>
@@ -338,7 +340,8 @@ function MyStudents() {
 
 function AttendanceTracker() {
   const { activities } = useRole()
-  const myActivities = activities.filter((a) => a.instructorId === "t1")
+  const { user } = useAuth()
+  const myActivities = activities.filter((a) => a.instructorId === user.id)
   const [checked, setChecked] = useState({})
 
   return (
@@ -424,7 +427,8 @@ function AttendanceTracker() {
 
 export function OrganizerDashboard() {
   const { activities } = useRole()
-  const myActivities = activities.filter((a) => a.instructorId === "t1")
+  const { user } = useAuth()
+  const myActivities = activities.filter((a) => a.instructorId === user.id)
   const totalEnrolled = myActivities.reduce((sum, a) => sum + a.enrolled, 0)
   const upcoming = myActivities.filter((a) => a.status === "upcoming").length
   const pending = myActivities.filter((a) => a.approvalStatus === "pending").length

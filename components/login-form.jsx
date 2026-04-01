@@ -1,12 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { useRole } from "@/lib/role-context"
+import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { GraduationCap, Shield, BookOpen, Users, ChevronRight, ArrowLeft } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { GraduationCap, Shield, BookOpen, Users, ChevronRight, ArrowLeft, AlertCircle, Loader2 } from "lucide-react"
 
 const roles = [
   {
@@ -33,28 +34,41 @@ const roles = [
 ]
 
 export function LoginForm() {
-  const { setRole } = useRole()
+  const { login, loading, error } = useAuth()
   const [selectedRole, setSelectedRole] = useState(null)
-  const [email, setEmail] = useState("")
+  const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
+  const [loginError, setLoginError] = useState("")
 
   function handleSelectRole(role) {
     setSelectedRole(role)
-    setEmail(`${role}@eduactivity.com`)
-    setPassword("demo123")
+    setUsername("N23DCCN047")
+    setPassword("12345678")
+    setLoginError("")
   }
 
-  function handleLogin(e) {
+  async function handleLogin(e) {
     e.preventDefault()
-    if (selectedRole) {
-      setRole(selectedRole)
+    setLoginError("")
+    
+    if (!username || !password) {
+      setLoginError("Vui lòng nhập tên đăng nhập và mật khẩu")
+      return
+    }
+
+    try {
+      await login(username, password)
+      // Login thành công, page sẽ redirect tự động thông qua RoleProvider
+    } catch (err) {
+      setLoginError(err.message || "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.")
     }
   }
 
   function handleBack() {
     setSelectedRole(null)
-    setEmail("")
+    setUsername("")
     setPassword("")
+    setLoginError("")
   }
 
   const selectedRoleData = roles.find(r => r.role === selectedRole)
@@ -128,47 +142,65 @@ export function LoginForm() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleLogin} className="flex flex-col gap-4">
+                {(loginError || error) && (
+                  <Alert className="border-destructive/50 bg-destructive/10">
+                    <AlertCircle className="h-4 w-4 text-destructive" />
+                    <AlertDescription className="text-destructive">
+                      {loginError || error}
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium text-foreground">
-                    Email
+                  <Label htmlFor="username" className="text-sm font-medium text-foreground">
+                    Tên đăng nhập
                   </Label>
                   <Input
-                    id="email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    id="username"
+                    type="text"
+                    placeholder="Nhập tên đăng nhập"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                     className="h-11"
+                    disabled={loading}
                     required
                   />
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="password" className="text-sm font-medium text-foreground">
-                      Password
+                      Mật khẩu
                     </Label>
                     <button type="button" className="text-xs text-primary hover:underline">
-                      Forgot password?
+                      Quên mật khẩu?
                     </button>
                   </div>
                   <Input
                     id="password"
                     type="password"
-                    placeholder="Enter your password"
+                    placeholder="Nhập mật khẩu"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="h-11"
+                    disabled={loading}
                     required
                   />
                 </div>
-                <Button type="submit" className="h-11 mt-2 w-full">
-                  Sign In
+                <Button type="submit" className="h-11 mt-2 w-full" disabled={loading}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Đang đăng nhập...
+                    </>
+                  ) : (
+                    "Đăng nhập"
+                  )}
                 </Button>
               </form>
 
               <div className="mt-4 p-3 rounded-lg bg-muted/50 border border-border">
                 <p className="text-xs text-muted-foreground text-center">
-                  Demo credentials are pre-filled. Click Sign In to continue.
+                  Các thông tin đăng nhập mặc định đã được điền sẵn. Nhấp vào Đăng nhập để tiếp tục.
                 </p>
               </div>
             </CardContent>
