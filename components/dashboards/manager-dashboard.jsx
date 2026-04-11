@@ -3,15 +3,22 @@
 import { useRole } from "@/lib/role-context"
 import { StatCard } from "@/components/stat-card"
 import { PersonalProfilePanel } from "@/components/profile/personal-profile-panel"
+import { StatusBadge, CategoryBadge } from "@/components/status-badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Progress } from "@/components/ui/progress"
 import {
+  CalendarDays,
   Users,
-  Bell,
-  AlertCircle,
+  TrendingUp,
+  Check,
+  X,
   MoreHorizontal,
+  AlertCircle,
+  Clock,
+  FileText,
 } from "lucide-react"
 
 function ActivityApprovalTable() {
@@ -245,79 +252,57 @@ function ActivityApprovalTable() {
   )
 }
 
-function AnnouncementsPanel() {
-  const { activities } = useRole()
-  const mockAnnouncements = [
+function ReportsPanel() {
+  const mockReports = [
     {
-      id: "an1",
-      title: "Spring Activities Registration Open",
-      content: "Registration for all spring semester activities is now open. Please sign up before March 10th to secure your spot.",
-      author: "Sarah Chen",
+      id: "rep1",
+      title: "Monthly Activity Statistics",
+      description: "Comprehensive overview of activity engagement and participation metrics",
+      date: "2026-03-05",
+      author: "System",
+    },
+    {
+      id: "rep2",
+      title: "Student Enrollment Report",
+      description: "Detailed breakdown of enrollment patterns across all activities",
+      date: "2026-03-04",
+      author: "System",
+    },
+    {
+      id: "rep3",
+      title: "Activity Performance Review",
+      description: "Analysis of completed activities and their success metrics",
       date: "2026-03-01",
-      priority: "high",
-    },
-    {
-      id: "an2",
-      title: "Basketball Tournament Schedule Update",
-      content: "The tournament has been rescheduled to March 15th due to facility maintenance. All registered participants will be notified.",
-      author: "James Wilson",
-      date: "2026-03-03",
-      priority: "medium",
-    },
-    {
-      id: "an3",
-      title: "New Computer Lab Equipment",
-      content: "The engineering lab has been upgraded with new 3D printers and robotics kits. Available for club use starting next week.",
-      author: "Prof. Alan Turing",
-      date: "2026-03-02",
-      priority: "low",
-    },
-    {
-      id: "an4",
-      title: "Community Service Hours Reminder",
-      content: "All students must complete a minimum of 20 community service hours per semester. Check available volunteer opportunities.",
-      author: "Sarah Chen",
-      date: "2026-02-28",
-      priority: "medium",
+      author: "System",
     },
   ]
-
-  const priorityStyles = {
-    high: "bg-destructive/10 text-destructive border-destructive/20",
-    medium: "bg-warning/10 text-warning border-warning/20",
-    low: "bg-muted text-muted-foreground border-border",
-  }
 
   return (
     <Card>
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <CardTitle className="text-card-foreground">Recent Announcements</CardTitle>
-          <CardDescription>Latest updates and notices</CardDescription>
+          <CardTitle className="text-card-foreground">Reports</CardTitle>
+          <CardDescription>View and analyze activity reports</CardDescription>
         </div>
         <Button variant="outline" size="sm" className="w-full sm:w-auto border-border text-foreground hover:bg-secondary">
-          View All
+          Generate Report
         </Button>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        {mockAnnouncements.map((announcement) => (
+        {mockReports.map((report) => (
           <div
-            key={announcement.id}
-            className="flex items-start gap-3 rounded-lg border border-border bg-secondary/30 p-3"
+            key={report.id}
+            className="flex items-start gap-3 rounded-lg border border-border bg-secondary/30 p-4"
           >
-            <AlertCircle className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+            <FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
             <div className="flex-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-medium text-card-foreground">{announcement.title}</span>
-                <Badge variant="outline" className={priorityStyles[announcement.priority]}>
-                  {announcement.priority}
-                </Badge>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <span className="text-sm font-medium text-card-foreground">{report.title}</span>
+                <span className="text-xs text-muted-foreground">{report.date}</span>
               </div>
-              <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{announcement.content}</p>
+              <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{report.description}</p>
               <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                <span>{announcement.author}</span>
-                <span>{"/"}</span>
-                <span>{announcement.date}</span>
+                <span>By {report.author}</span>
               </div>
             </div>
           </div>
@@ -327,133 +312,48 @@ function AnnouncementsPanel() {
   )
 }
 
-function StudentsList() {
-  const mockStudents = [
-    { id: 1, name: "Alice Johnson", email: "alice@university.edu", enrollments: 5, role: "Active" },
-    { id: 2, name: "Bob Smith", email: "bob@university.edu", enrollments: 3, role: "Active" },
-    { id: 3, name: "Carol Davis", email: "carol@university.edu", enrollments: 7, role: "Active" },
-    { id: 4, name: "David Lee", email: "david@university.edu", enrollments: 2, role: "Inactive" },
-  ]
-
-  return (
-    <Card>
-      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <CardTitle className="text-card-foreground">Students Management</CardTitle>
-          <CardDescription>Manage all registered students and their accounts</CardDescription>
-        </div>
-        <Button size="sm" className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90">
-          Add Student
-        </Button>
-      </CardHeader>
-      <CardContent>
-        {/* Mobile Card View */}
-        <div className="flex flex-col gap-3 md:hidden">
-          {mockStudents.map((student) => (
-            <div key={student.id} className="flex flex-col gap-2 rounded-lg border border-border bg-secondary/30 p-4">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1">
-                  <span className="font-medium text-card-foreground">{student.name}</span>
-                  <p className="text-xs text-muted-foreground">{student.email}</p>
-                </div>
-                <Badge variant={student.role === "Active" ? "default" : "secondary"}>{student.role}</Badge>
-              </div>
-              <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <span>Enrollments: {student.enrollments}</span>
-                <Button variant="ghost" size="icon" className="size-8" aria-label="More actions">
-                  <MoreHorizontal className="size-4" />
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
-        
-        {/* Desktop Table View */}
-        <div className="hidden md:block overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Enrollments</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-10">
-                  <span className="sr-only">Actions</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {mockStudents.map((student) => (
-                <TableRow key={student.id}>
-                  <TableCell className="font-medium text-card-foreground">{student.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{student.email}</TableCell>
-                  <TableCell className="text-muted-foreground">{student.enrollments}</TableCell>
-                  <TableCell>
-                    <Badge variant={student.role === "Active" ? "default" : "secondary"}>{student.role}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="icon" className="size-8" aria-label="More actions">
-                      <MoreHorizontal className="size-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-export function AdminDashboard({ activeSection = "dashboard" }) {
-  const mockStudents = [
-    { id: 1, name: "Alice Johnson", email: "alice@university.edu", status: "Active" },
-    { id: 2, name: "Bob Smith", email: "bob@university.edu", status: "Active" },
-    { id: 3, name: "Carol Davis", email: "carol@university.edu", status: "Active" },
-    { id: 4, name: "David Lee", email: "david@university.edu", status: "Inactive" },
-  ]
-
-  const totalStudents = mockStudents.length
-  const activeStudents = mockStudents.filter((s) => s.status === "Active").length
-  const inactiveStudents = mockStudents.filter((s) => s.status === "Inactive").length
+export function ManagerDashboard({ activeSection = "dashboard" }) {
+  const { activities } = useRole()
+  const totalActivities = activities.length
+  const pendingApprovals = activities.filter((a) => a.approvalStatus === "pending").length
+  const approvedActivities = activities.filter((a) => a.approvalStatus === "approved").length
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6">
       <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Total Students"
-          value={totalStudents}
-          icon={<Users className="size-5" />}
-          trend={{ value: "+5%", positive: true }}
-          description="this month"
+          title="Total Activities"
+          value={totalActivities}
+          icon={<CalendarDays className="size-5" />}
+          trend={{ value: "+12%", positive: true }}
+          description="from last month"
         />
         <StatCard
-          title="Active Students"
-          value={activeStudents}
-          icon={<Users className="size-5" />}
-          description="currently active"
-        />
-        <StatCard
-          title="Inactive Students"
-          value={inactiveStudents}
+          title="Pending Approvals"
+          value={pendingApprovals}
           icon={<AlertCircle className="size-5" />}
-          description="need attention"
+          description="awaiting review"
         />
         <StatCard
-          title="Announcements"
-          value={4}
-          icon={<Bell className="size-5" />}
-          description="published"
+          title="Approved"
+          value={approvedActivities}
+          icon={<TrendingUp className="size-5" />}
+          description="active & verified"
+        />
+        <StatCard
+          title="Reports"
+          value={3}
+          icon={<FileText className="size-5" />}
+          description="available"
         />
       </div>
 
       {/* Content Area */}
-      {(activeSection === "dashboard" || activeSection === "students") && (
-        <StudentsList />
+      {(activeSection === "dashboard" || activeSection === "activity-approvals") && (
+        <ActivityApprovalTable />
       )}
-      {activeSection === "announcements" && (
-        <AnnouncementsPanel />
+      {activeSection === "reports" && (
+        <ReportsPanel />
       )}
       {activeSection === "personal-profile" && (
         <PersonalProfilePanel />

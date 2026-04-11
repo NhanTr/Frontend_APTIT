@@ -1,50 +1,170 @@
-# EduActivity Project - Comprehensive Analysis
+# EduActivity Frontend - Comprehensive Project Analysis
 
 ## Project Overview
 
-**Type:** Next.js 16 Student Activity Management System  
-**Tech Stack:** React, Next.js, Tailwind CSS, Radix UI Components, TypeScript/JavaScript  
-**Purpose:** Multi-role dashboard system for managing educational activities (sports, academic, cultural, technology, community)
+**Project Name:** EduActivity Management System  
+**Type:** Student Activity Management Dashboard  
+**Tech Stack:** Next.js 16, React, TypeScript/JavaScript, Tailwind CSS, Radix UI  
+**Status:** In Development  
+**Purpose:** Multi-role dashboard for managing educational activities (sports, academic, cultural, technology, community)
 
 ---
 
 ## Table of Contents
-1. [Project Structure](#project-structure)
-2. [Core Data Model](#core-data-model)
+
+1. [Kiến Trúc Dự Án](#kiến-trúc-dự-án)
+2. [Authentication & Token Management](#authentication--token-management)
 3. [Role-Based System](#role-based-system)
-4. [Authentication & Navigation](#authentication--navigation)
-5. [Dashboard Functionality by Role](#dashboard-functionality-by-role)
-6. [Activity Management Workflow](#activity-management-workflow)
-7. [Current Limitations](#current-limitations)
-8. [Recommendations for Structural Changes](#recommendations-for-structural-changes)
+4. [Core Features by Role](#core-features-by-role)
+5. [API Integration](#api-integration)
+6. [State Management](#state-management)
+7. [File Structure & Responsibilities](#file-structure--responsibilities)
 
 ---
 
-## Project Structure
+## Kiến Trúc Dự Án
 
+### Folder Structure
 ```
-root/
+frontend_APTIT/
 ├── app/
-│   ├── layout.jsx         # Main Next.js layout wrapper
-│   ├── page.jsx          # Entry point (renders RoleProvider → AppContent)
-│   └── globals.css       # Global styles
+│   ├── api/
+│   │   ├── auth/
+│   │   │   ├── login/route.js
+│   │   │   ├── register/route.js
+│   │   │   ├── logout/route.js
+│   │   │   ├── refresh/route.js
+│   │   │   └── me/route.js
+│   │   ├── activities/
+│   │   │   ├── route.js (GET all activities with pagination)
+│   │   │   └── [id]/route.js (GET/PATCH/DELETE single activity)
+│   │   ├── registrations/
+│   │   │   └── route.js (POST enroll, DELETE unenroll, GET user enrollments)
+│   │   ├── profile/
+│   │   │   └── route.js (GET/PUT user profile without userId param)
+│   │   └── users/
+│   │       ├── route.js (GET all users, POST create user)
+│   │       └── [id]/route.js (GET/PUT/DELETE single user)
+│   ├── layout.jsx
+│   ├── page.jsx (Main entry point)
+│   └── globals.css
+│
 ├── components/
 │   ├── dashboards/
-│   │   ├── admin-dashboard.jsx          # Admin view
-│   │   ├── organizer-dashboard.jsx      # Organizer view
-│   │   └── student-dashboard.jsx        # Student view
-│   ├── app-sidebar.jsx                  # Navigation sidebar (role-specific)
-│   ├── dashboard-header.jsx             # Top header with notifications
-│   ├── login-form.jsx                   # Authentication UI
-│   ├── stat-card.jsx                    # KPI display component
-│   ├── status-badge.jsx                 # Status/Category badges
-│   └── ui/                              # Radix UI component library
+│   │   ├── admin-dashboard.jsx
+│   │   ├── manager-dashboard.jsx
+│   │   ├── organizer-dashboard.jsx
+│   │   ├── student-dashboard.jsx
+│   │   └── guest-dashboard.jsx
+│   ├── profile/
+│   │   └── personal-profile-panel.jsx
+│   ├── student/
+│   │   ├── activity-grid.jsx
+│   │   ├── my-enrollments.jsx
+│   │   └── announcements.jsx
+│   ├── app-sidebar.jsx
+│   ├── dashboard-header.jsx
+│   ├── login-form.jsx
+│   ├── stat-card.jsx
+│   ├── status-badge.jsx
+│   ├── theme-provider.tsx
+│   └── ui/ (Radix UI components)
+│
 ├── lib/
-│   ├── role-context.jsx                 # Role/Auth context provider
-│   ├── mock-data.js                     # Mock database
-│   └── utils.ts                         # Utility functions
-└── public/                              # Static assets
+│   ├── auth-context.jsx (Authentication state & token management)
+│   ├── role-context.jsx (Activities & role-based state)
+│   └── utils.ts
+│
+├── hooks/
+│   ├── use-student-enrollment.ts (Enrollment API calls)
+│   ├── use-mobile.ts (Responsive utility)
+│   └── use-toast.ts
+│
+├── public/
+├── styles/
+├── PROJECT_ANALYSIS.md (this file)
+└── PROJECT_WORKFLOW.md
 ```
+
+---
+
+## Authentication & Token Management
+
+### Token Structure
+
+**Frontend Storage:**
+```javascript
+localStorage {
+  accessToken: "JWT token (short-lived, ~15-30 min)",
+  refreshToken: "Refresh token (long-lived, ~7-30 days)",
+  username: "Cached username for display"
+}
+```
+
+### Authentication Flow
+
+1. **User Login**
+   ```
+   LoginForm → /api/auth/login (POST)
+      ↓
+   Backend validates credentials & returns:
+      {
+        accessToken: "...",
+        refreshToken: "...",
+        user: { id, username, email, role }
+      }
+      ↓
+   Frontend stores tokens in localStorage
+      ↓
+   AuthProvider updates state → Router navigates to dashboard
+   ```
+
+2. **On App Startup (Bootstrap)**
+   ```
+   AuthProvider useEffect() {
+      1. Check localStorage for accessToken
+      2. If NO accessToken → Check refreshToken
+      3. If NO refreshToken → Logout
+      4. If accessToken EXPIRED → Try refreshToken
+      5. If refreshToken valid → Get new accessToken
+      6. If refreshToken invalid/expired → Logout
+   }
+   ```
+
+3. **Automatic Token Refresh**
+   ```
+   Any API call gets 401 response:
+      ↓
+   makeAuthenticatedRequest() detects 401
+      ↓
+   Calls refreshAccessToken()
+      ↓
+   POST /api/auth/refresh { refreshToken }
+      ↓
+   Backend validates & returns new accessToken
+      ↓
+   Update localStorage & retry original request
+      ↓
+   If refresh fails → logout()
+   ```
+
+4. **Periodic Token Check**
+   ```
+   Every 30 seconds:
+      ↓
+   Check if accessToken expires in < 1 minute
+      ↓
+   If yes → Automatically refresh before expiry
+      ↓
+   No user interruption
+   ```
+
+### Key Files
+
+- `lib/auth-context.jsx` - Auth state, login/logout, token refresh logic
+- `app/api/auth/` - Backend proxy endpoints
+- `hooks/use-student-enrollment.ts` - API wrapper with auto-refresh
+- `lib/role-context.jsx` - Activity data with auto-refresh
 
 ---
 

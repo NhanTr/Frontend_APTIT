@@ -1,4 +1,4 @@
-// Decode JWT token để lấy payload (không cần verify ở frontend)
+// Decode JWT token để lấy payload
 function decodeToken(token) {
   try {
     const base64Url = token.split('.')[1]
@@ -18,21 +18,29 @@ function decodeToken(token) {
 
 export async function POST(req) {
   try {
-    const { username, password } = await req.json()
+    const { refreshToken } = await req.json()
+
+    if (!refreshToken) {
+      return new Response(
+        JSON.stringify({ error: 'Refresh token is required' }),
+        { status: 400 }
+      )
+    }
 
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'
-    const response = await fetch(`${backendUrl}/auth/token`, {
+    
+    const response = await fetch(`${backendUrl}/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
+      body: JSON.stringify({ refreshToken })
     })
 
     if (!response.ok) {
       const error = await response.json()
-      console.error('❌ Backend login error:', error)
+      console.error('❌ Backend refresh error:', error)
       return new Response(
         JSON.stringify({ 
-          error: error.message || 'Đăng nhập thất bại'
+          error: error.message || 'Token refresh failed'
         }), 
         { status: response.status }
       )
@@ -40,42 +48,33 @@ export async function POST(req) {
 
     const data = await response.json()
     
-    // Backend format: { code, message, result: { token, refreshToken, authenticated } }
+    // Backend format: { code, message, result: { token, refreshToken } }
     const authResult = data.result
     
-    if (!authResult?.token || !authResult?.authenticated) {
-      console.error('❌ Missing auth fields:', authResult)
+    if (!authResult?.token) {
+      console.error('❌ Missing token in refresh response:', authResult)
       return new Response(
         JSON.stringify({ 
-          error: 'Backend trả về dữ liệu không đầy đủ',
+          error: 'Backend returned invalid refresh response',
           received: authResult
         }), 
         { status: 400 }
       )
     }
 
-    // Decode token để lấy user info
+    // Decode token để verify
     const tokenPayload = decodeToken(authResult.token)
-
     if (!tokenPayload) {
-      console.error('❌ Failed to decode token')
+      console.error('❌ Failed to decode refreshed token')
       return new Response(
-        JSON.stringify({ error: 'Không thể decode token' }), 
+        JSON.stringify({ error: 'Failed to decode token' }), 
         { status: 400 }
       )
     }
 
-    // Tạo user object từ JWT payload
-    const user = {
-      id: tokenPayload.userId || tokenPayload.sub,
-      username: username,
-      role: (tokenPayload.scopes || 'STUDENT').toLowerCase(),
-    }
-    
     const responseData = {
       accessToken: authResult.token,
-      refreshToken: authResult.refreshToken,
-      user: user
+      refreshToken: authResult.refreshToken || refreshToken
     }
     
     return new Response(
@@ -83,14 +82,16 @@ export async function POST(req) {
       { 
         status: 200,
         headers: {
-          'Set-Cookie': `refreshToken=${authResult.refreshToken}; HttpOnly; Path=/; Max-Age=604800; SameSite=Lax`
+          'Content-Type': 'application/json',
         }
       }
     )
   } catch (error) {
-    console.error('❌ Login error:', error.message)
+    console.error('❌ Token refresh error:', error)
     return new Response(
-      JSON.stringify({ error: 'Lỗi đăng nhập: ' + error.message }), 
+      JSON.stringify({ 
+        error: error.message || 'Token refresh failed'
+      }), 
       { status: 500 }
     )
   }

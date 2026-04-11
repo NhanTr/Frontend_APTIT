@@ -3,15 +3,31 @@ export async function GET(req) {
     const authHeader = req.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '')
 
+    const { searchParams } = new URL(req.url)
+    const page = searchParams.get('page') || '0'
+    const size = searchParams.get('size') || '10'
+
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'
-    const response = await fetch(`${backendUrl}/api/v1/activities`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+    const url = new URL(`${backendUrl}/api/v1/activities`)
+    url.searchParams.append('page', page)
+    url.searchParams.append('size', size)
+    
+    // Build headers - only add Authorization if token exists
+    const headers = {
+      'Content-Type': 'application/json'
+    }
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+    
+    const response = await fetch(url.toString(), {
+      headers
     })
 
     if (!response.ok) {
+      const errorText = await response.text()
+      console.error('❌ Fetch activities failed:', { status: response.status, error: errorText })
       return new Response(
         JSON.stringify({ error: 'Failed to fetch activities' }),
         { status: response.status }
@@ -22,7 +38,7 @@ export async function GET(req) {
     const activities = data.result || data
     return new Response(JSON.stringify(activities), { status: 200 })
   } catch (error) {
-    console.error('Get activities error:', error)
+    console.error('❌ Get activities error:', error.message)
     return new Response(JSON.stringify({ error: error.message }), { status: 500 })
   }
 }

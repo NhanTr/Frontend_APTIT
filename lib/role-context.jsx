@@ -1,17 +1,22 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect } from "react"
-import { mockUsers, mockActivities } from "./mock-data"
 import { useAuth } from "./auth-context"
 
 const RoleContext = createContext(undefined)
 
 export function RoleProvider({ children }) {
-  const {user, accessToken } = useAuth()
-  const [currentUser, setCurrentUser] = useState(mockUsers[0])
-  const [activities, setActivities] = useState(mockActivities)
+  const {user, accessToken, refreshAccessToken, logout } = useAuth()
+  const [currentUser, setCurrentUser] = useState(null)
+  const [activities, setActivities] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  
+  // Pagination state (0-based page numbering for backend)
+  const [currentPage, setCurrentPage] = useState(0)
+  const [pageSize] = useState(10)
+  const [totalPages, setTotalPages] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
 
   // Helper: Transform backend activity format to frontend format
   function transformActivity(backendActivity) {
@@ -41,6 +46,49 @@ export function RoleProvider({ children }) {
     }
   }
 
+  // Helper: Make API call with automatic token refresh on 401
+  async function makeAuthenticatedRequest(url, options = {}, retryCount = 0) {
+    const maxRetries = 1
+    
+    try {
+      const headers = {
+        'Content-Type': 'application/json',
+        ...options.headers
+      }
+
+      // Add authorization header if we have a token
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`
+      }
+
+      const response = await fetch(url, {
+        ...options,
+        headers
+      })
+
+      // If token expired, try to refresh and retry
+      if (response.status === 401 && retryCount < maxRetries) {
+        console.log('⏰ Token expired (401), attempting to refresh...')
+        const refreshed = await refreshAccessToken()
+        
+        if (refreshed) {
+          console.log('✅ Token refreshed, retrying request...')
+          // Recursively retry with incremented counter
+          return makeAuthenticatedRequest(url, options, retryCount + 1)
+        } else {
+          console.error('❌ Token refresh failed, logging out...')
+          await logout()
+          throw new Error('Session expired. Please log in again.')
+        }
+      }
+
+      return response
+    } catch (err) {
+      console.error('❌ Authenticated request error:', err.message)
+      throw err
+    }
+  }
+
   // Cập nhật currentUser khi user từ auth context thay đổi
   useEffect(() => {
     if (user) {
@@ -53,74 +101,74 @@ export function RoleProvider({ children }) {
     }
   }, [user])
 
-  // Fetch activities từ API backend
+  // Fetch activities từ API backend với pagination
   useEffect(() => {
     const fetchActivities = async () => {
-      if (!accessToken) {
-        console.log('⏭️  Skipping: No accessToken yet')
-        return
-      }
-      
       try {
         setLoading(true)
-        console.log('📡 Fetching activities from /api/activities (frontend route)')
+        const url = `/api/activities?page=${currentPage}&size=${pageSize}`
         
-        // Gọi qua frontend API route mà không qua backend trực tiếp
-        const response = await fetch('/api/activities', {
-          method: 'GET',
-          headers: { 
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          }
-        })
+        console.log('📡 Fetching activities from:', url)
+        const response = await makeAuthenticatedRequest(url, { method: 'GET' })
 
-        console.log('📊 Response status:', response.status)
+        console.log('📊 Response status:', response.status, response.statusText)
 
         if (!response.ok) {
           const errorText = await response.text()
-          console.error('❌ Response not ok:', {
-            status: response.status,
-            statusText: response.statusText,
-            body: errorText
-          })
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+          console.error(`❌ Fetch activities error: ${response.status} ${response.statusText}`, errorText)
+          throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`)
         }
 
         const data = await response.json()
-        console.log('✅ Activities fetched:', data)
+        console.log('✅ API response data:', data)
+        
+        // Parse response - Backend format: { code, message, result: { content: [...], totalPages, totalElements } }
+        const result = data.result || data
+        let activitiesList = Array.isArray(result) ? result : result.content || []
+        let totalPagesFromResponse = result.totalPages || 1
+        
+        console.log('📋 Transformed activities count:', activitiesList.length)
+        
         // Transform backend format to frontend format
-        const transformedActivities = (Array.isArray(data) ? data : data.result || [])
+        const transformedActivities = activitiesList
           .map(activity => transformActivity(activity))
-        setActivities(transformedActivities)
+
+        // Nếu là trang đầu tiên (page 0), replace toàn bộ activities; nếu không thì append
+        if (currentPage === 0) {
+          setActivities(transformedActivities)
+        } else {
+          setActivities(prev => [...prev, ...transformedActivities])
+        }
+        
+        // Cập nhật pagination info
+        setTotalPages(totalPagesFromResponse)
+        setHasMore(currentPage < totalPagesFromResponse)
         setError(null)
       } catch (err) {
-        console.error('❌ Error fetching activities:', {
-          message: err.message,
-          stack: err.stack,
-          type: err.constructor.name
-        })
-        console.error('Full error:', err)
+        console.error('❌ Error fetching activities:', err.message)
         setError(err.message)
-        // Fallback: dùng mock data nếu API fail
-        console.log('📦 Using mock data as fallback')
-        setActivities(mockActivities)
+        // Fallback: dùng mock data nếu API fail và đang ở trang đầu
+        if (currentPage === 0) {
+          setActivities([])
+          setTotalPages(1)
+          setHasMore(false)
+        }
       } finally {
         setLoading(false)
       }
     }
 
     fetchActivities()
-  }, [accessToken])
+  }, [accessToken, currentPage, pageSize])
 
   async function createActivity(activityData) {
     if (!accessToken) throw new Error('Not authenticated')
     
     try {
-      const response = await fetch('/api/activities', {
+      const response = await makeAuthenticatedRequest('/api/activities', {
         method: 'POST',
         headers: { 
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${accessToken}`
         },
         body: JSON.stringify({
           ...activityData,
@@ -205,6 +253,23 @@ export function RoleProvider({ children }) {
     }
   }
 
+  // Tải thêm activities (next page)
+  const loadMore = () => {
+    if (hasMore && !loading) {
+      setCurrentPage(prev => prev + 1)
+    }
+  }
+
+  // Reset về trang 0 khi logout (accessToken becomes null)
+  useEffect(() => {
+    if (!accessToken) {
+      setCurrentPage(0)
+      setActivities([])
+      setHasMore(true)
+      setTotalPages(1)
+    }
+  }, [accessToken])
+
   return (
     <RoleContext.Provider value={{ 
       currentUser, 
@@ -214,7 +279,13 @@ export function RoleProvider({ children }) {
       createActivity,
       approveActivity,
       rejectActivity,
-      updateActivityStatus
+      updateActivityStatus,
+      // Pagination
+      currentPage,
+      pageSize,
+      totalPages,
+      hasMore,
+      loadMore
     }}>
       {children}
     </RoleContext.Provider>

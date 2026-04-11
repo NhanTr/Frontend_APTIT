@@ -3,15 +3,11 @@ export async function POST(req) {
     const authHeader = req.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '')
 
-    console.log('🔑 Logout request received')
-
     // Backend logout endpoint (nếu có)
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'
     
     if (token) {
       try {
-        // Gọi backend logout endpoint (nếu backend có)
-        // Chú ý: có thể backend không có logout endpoint, nó chỉ validate token
         await fetch(`${backendUrl}/auth/logout`, {
           method: 'POST',
           headers: {
@@ -19,15 +15,12 @@ export async function POST(req) {
             'Content-Type': 'application/json'
           }
         }).catch(err => {
-          // Nếu backend không có logout endpoint, vẫn tiếp tục
-          console.log('Backend logout endpoint not available:', err.message)
+          // If backend doesn't have logout endpoint, continue anyway
         })
       } catch (err) {
-        console.log('Backend logout error:', err.message)
+        // Ignore backend logout errors
       }
     }
-
-    console.log('✅ Logout successful')
     
     return new Response(
       JSON.stringify({ 

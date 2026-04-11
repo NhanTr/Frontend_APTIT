@@ -5,6 +5,18 @@ import { useRouter } from "next/navigation"
 
 const AuthContext = createContext(undefined)
 
+// Check if token is expired
+function isTokenExpired(token) {
+  try {
+    const payload = decodeToken(token)
+    if (!payload || !payload.exp) return true
+    // Check if token expires in less than 1 minute
+    return payload.exp * 1000 - Date.now() < 60000
+  } catch {
+    return true
+  }
+}
+
 // Decode JWT token để lấy payload
 function decodeToken(token) {
   try {
@@ -30,63 +42,140 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  // Refresh access token using refresh token
+  async function refreshAccessToken() {
+    try {
+      const refreshTokenValue = localStorage.getItem('refreshToken')
+      if (!refreshTokenValue) {
+        console.error('❌ No refresh token available')
+        await logout()
+        return false
+      }
+
+      const response = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: refreshTokenValue })
+      })
+
+      if (!response.ok) {
+        console.error('❌ Token refresh failed:', response.status)
+        await logout()
+        return false
+      }
+
+      const data = await response.json()
+      
+      if (!data.accessToken) {
+        console.error('❌ No new accessToken in refresh response')
+        await logout()
+        return false
+      }
+
+      // Update token pair
+      localStorage.setItem('accessToken', data.accessToken)
+      if (data.refreshToken) {
+        localStorage.setItem('refreshToken', data.refreshToken)
+      }
+
+      // Rebuild user from refreshed token
+      const tokenPayload = decodeToken(data.accessToken)
+      const savedUsername = localStorage.getItem('username') || user?.username || 'User'
+
+      setAccessToken(data.accessToken)
+      setUser((prev) => ({
+        ...(prev || {}),
+        id: tokenPayload?.userId || tokenPayload?.sub || prev?.id,
+        username: prev?.username || savedUsername,
+        name: prev?.name || savedUsername,
+        role: tokenPayload?.scopes ? tokenPayload.scopes.toLowerCase() : (prev?.role || 'student'),
+        expiresAt: tokenPayload?.exp ? tokenPayload.exp * 1000 : prev?.expiresAt
+      }))
+
+      setError(null)
+      console.log('✅ Token refreshed successfully')
+      return true
+    } catch (err) {
+      console.error('❌ Token refresh error:', err.message)
+      await logout()
+      return false
+    }
+  }
+
   // Kiểm tra token từ localStorage khi mount
   useEffect(() => {
-    const token = localStorage.getItem('accessToken')
-    if (token) {
-      console.log('🔐 Token found in localStorage, decoding...')
-      const payload = decodeToken(token)
-      
-      if (payload) {
-        console.log('✅ Token decoded successfully:', payload)
-        setAccessToken(token)
-        // Tạo user object từ JWT payload
-        // 从 localStorage 获取 username (login 时保存的)
-        const savedUsername = localStorage.getItem('username') || 'User'
-        const userData = {
-          id: payload.userId || payload.sub,
-          username: savedUsername,
-          name: savedUsername,
-          role: (payload.scopes || 'STUDENT').toLowerCase(),
-          expiresAt: payload.exp * 1000 // convert to milliseconds
+    const bootstrapAuth = async () => {
+      const token = localStorage.getItem('accessToken')
+      const savedUsername = localStorage.getItem('username') || 'User'
+
+      if (!token) {
+        // No access token, try refresh token before considering session expired
+        const refreshed = await refreshAccessToken()
+        if (!refreshed) {
+          setError('Phiên đăng nhập đã hết hạn')
         }
-        setUser(userData)
-        setError(null)
-      } else {
-        console.error('❌ Cannot decode token')
-        localStorage.removeItem('accessToken')
-        setAccessToken(null)
-        setError('Token không hợp lệ')
+        setLoading(false)
+        return
       }
-    } else {
-      console.log('⏭️  No token in localStorage')
+
+      const payload = decodeToken(token)
+
+      if (!payload) {
+        console.error('❌ Cannot decode access token, trying refresh token...')
+        localStorage.removeItem('accessToken')
+        const refreshed = await refreshAccessToken()
+        if (!refreshed) {
+          setError('Token không hợp lệ')
+        }
+        setLoading(false)
+        return
+      }
+
+      // If access token is expired, try refresh token instead of immediate logout
+      if (isTokenExpired(token)) {
+        console.log('⏰ Access token expired on startup, attempting refresh token...')
+        const refreshed = await refreshAccessToken()
+        if (!refreshed) {
+          setError('Phiên đăng nhập đã hết hạn')
+        }
+        setLoading(false)
+        return
+      }
+
+      // Access token is still valid
+      setAccessToken(token)
+      setUser({
+        id: payload.userId || payload.sub,
+        username: savedUsername,
+        name: savedUsername,
+        role: (payload.scopes || 'STUDENT').toLowerCase(),
+        expiresAt: payload.exp * 1000
+      })
+      setError(null)
+      setLoading(false)
     }
-    setLoading(false)
+
+    bootstrapAuth()
   }, [])
 
   async function login(username, password) {
     setLoading(true)
     setError(null)
     try {
-      console.log('🔐 Calling /api/auth/login with:', { username })
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
       })
 
-      console.log('📡 /api/auth/login response status:', response.status)
-
       if (!response.ok) {
         const errorData = await response.json()
-        console.error('❌ Login response error:', errorData)
+        console.error('❌ Login failed:', errorData.error)
         throw new Error(errorData.error || 'Đăng nhập thất bại')
       }
 
       const data = await response.json()
-      console.log('📦 Login response data:', JSON.stringify(data, null, 2))
       
-      // Kiểm tra các field bắt buộc
       if (!data.accessToken) {
         console.error('❌ No accessToken in response')
         throw new Error('Lỗi: Server không trả về accessToken')
@@ -96,28 +185,30 @@ export function AuthProvider({ children }) {
         console.error('❌ No user in response')
         throw new Error('Lỗi: Server không trả về thông tin user')
       }
-
-      console.log('✅ Login success, storing token')
       
-      // 保存 token 和 username 到 localStorage
       localStorage.setItem('accessToken', data.accessToken)
       localStorage.setItem('username', username)
       if (data.refreshToken) {
         localStorage.setItem('refreshToken', data.refreshToken)
       }
 
-      // 确保返回的 user 有 name 字段
+      // Decode token để lấy role từ JWT payload
+      const tokenPayload = decodeToken(data.accessToken)
+      
       const userWithName = {
         ...data.user,
         name: data.user.name || username,
-        username: username
+        username: username,
+        role: tokenPayload?.scopes ? (tokenPayload.scopes).toLowerCase() : data.user.role
       }
 
       setAccessToken(data.accessToken)
       setUser(userWithName)
       setError(null)
       
-      console.log('✅ User state updated:', userWithName)
+      // Navigate to home page which will show dashboard
+      router.push('/')
+      
       return userWithName
     } catch (err) {
       console.error('❌ Login error:', err)
@@ -157,9 +248,6 @@ export function AuthProvider({ children }) {
 
   async function logout() {
     try {
-      console.log('🔑 Logging out...')
-      
-      // Gọi backend logout API
       const response = await fetch('/api/auth/logout', {
         method: 'POST',
         headers: {
@@ -169,29 +257,35 @@ export function AuthProvider({ children }) {
       })
 
       if (!response.ok) {
-        console.error('Logout API error:', response.status)
-      } else {
-        console.log('✅ Backend logout successful')
+        console.error('❌ Logout API error:', response.status)
       }
     } catch (err) {
-      console.error('Logout error:', err)
-      // Vẫn tiếp tục logout local dù API fail
+      console.error('❌ Logout error:', err.message)
     } finally {
-      // Xóa local data
-      console.log('Clearing local storage...')
       localStorage.removeItem('accessToken')
       localStorage.removeItem('refreshToken')
       localStorage.removeItem('username')
       setAccessToken(null)
       setUser(null)
       setError(null)
-      console.log('✅ Logout completed')
       
-      // Redirect về login page
-      console.log('🔄 Redirecting to login...')
       router.push('/')
     }
   }
+
+  // Monitor token expiry and auto-refresh
+  useEffect(() => {
+    if (!accessToken) return
+
+    const checkTokenExpiry = setInterval(async () => {
+      if (isTokenExpired(accessToken)) {
+        console.log('⏰ Token about to expire, attempting refresh...')
+        await refreshAccessToken()
+      }
+    }, 30000) // Check every 30 seconds
+
+    return () => clearInterval(checkTokenExpiry)
+  }, [accessToken])
 
   return (
     <AuthContext.Provider 
@@ -203,6 +297,7 @@ export function AuthProvider({ children }) {
         login, 
         register, 
         logout,
+        refreshAccessToken,
         isAuthenticated: !!user && !!accessToken
       }}
     >

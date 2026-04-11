@@ -1,11 +1,10 @@
 "use client"
 
-import { Bell, Search, Menu } from "lucide-react"
+import { Search, Menu, LogIn, LogOut } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 
-export function DashboardHeader({ title, subtitle, onMenuClick }) {
+export function DashboardHeader({ title, subtitle, onMenuClick, onLoginClick, isAuthenticated, onLogoutClick }) {
   return (
     <header className="flex items-center justify-between border-b border-border bg-card px-4 py-3 sm:px-6 sm:py-4">
       <div className="flex items-center gap-3">
@@ -32,17 +31,25 @@ export function DashboardHeader({ title, subtitle, onMenuClick }) {
             className="w-64 pl-9 bg-secondary border-border text-secondary-foreground placeholder:text-muted-foreground"
           />
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative size-9 text-muted-foreground hover:text-foreground"
-          aria-label="Notifications"
-        >
-          <Bell className="size-5" />
-          <Badge className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full p-0 text-[10px]">
-            3
-          </Badge>
-        </Button>
+        {isAuthenticated && onLogoutClick ? (
+          <Button
+            onClick={onLogoutClick}
+            size="sm"
+            className="hidden sm:flex gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            <LogOut className="size-4" />
+            Sign out
+          </Button>
+        ) : onLoginClick ? (
+          <Button
+            onClick={onLoginClick}
+            size="sm"
+            className="hidden sm:flex gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            <LogIn className="size-4" />
+            Sign in
+          </Button>
+        ) : null}
       </div>
     </header>
   )

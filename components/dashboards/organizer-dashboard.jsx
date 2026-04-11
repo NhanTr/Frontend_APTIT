@@ -3,8 +3,8 @@
 import { useState } from "react"
 import { useRole } from "@/lib/role-context"
 import { useAuth } from "@/lib/auth-context"
-import { mockStudents } from "@/lib/mock-data"
 import { StatCard } from "@/components/stat-card"
+import { PersonalProfilePanel } from "@/components/profile/personal-profile-panel"
 import { StatusBadge, CategoryBadge } from "@/components/status-badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -28,7 +27,7 @@ import {
   AlertCircle,
 } from "lucide-react"
 
-const organizerStudents = mockStudents.slice(0, 4)
+const organizerStudents = []
 
 function CreateActivityForm() {
   const { createActivity } = useRole()
@@ -425,7 +424,7 @@ function AttendanceTracker() {
   )
 }
 
-export function OrganizerDashboard() {
+export function OrganizerDashboard({ activeSection = "dashboard" }) {
   const { activities } = useRole()
   const { user } = useAuth()
   const myActivities = activities.filter((a) => a.instructorId === user.id)
@@ -462,26 +461,22 @@ export function OrganizerDashboard() {
         />
       </div>
 
-      <Tabs defaultValue="activities" className="w-full">
-        <TabsList className="w-full sm:w-auto">
-          <TabsTrigger value="activities" className="flex-1 sm:flex-none">Activities</TabsTrigger>
-          <TabsTrigger value="create" className="flex-1 sm:flex-none">Create Activity</TabsTrigger>
-          <TabsTrigger value="students" className="flex-1 sm:flex-none">Students</TabsTrigger>
-          <TabsTrigger value="attendance" className="flex-1 sm:flex-none">Attendance</TabsTrigger>
-        </TabsList>
-        <TabsContent value="activities">
-          <MyActivities />
-        </TabsContent>
-        <TabsContent value="create">
-          <CreateActivityForm />
-        </TabsContent>
-        <TabsContent value="students">
-          <MyStudents />
-        </TabsContent>
-        <TabsContent value="attendance">
-          <AttendanceTracker />
-        </TabsContent>
-      </Tabs>
+      {/* Content Area */}
+      {(activeSection === "dashboard" || activeSection === "my-activities") && (
+        <MyActivities />
+      )}
+      {activeSection === "create-activity" && (
+        <CreateActivityForm />
+      )}
+      {activeSection === "my-students" && (
+        <MyStudents />
+      )}
+      {activeSection === "attendance" && (
+        <AttendanceTracker />
+      )}
+      {activeSection === "personal-profile" && (
+        <PersonalProfilePanel />
+      )}
     </div>
   )
 }
