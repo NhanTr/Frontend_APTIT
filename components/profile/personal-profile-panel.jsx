@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Loader2, Save, UserCircle2 } from "lucide-react"
+import { Loader2, Lock, Save, UserCircle2 } from "lucide-react"
+import { ChangePasswordDialog } from "./change-password-dialog"
 
 const defaultProfile = {
   id: "",
@@ -29,6 +30,7 @@ export function PersonalProfilePanel() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
 
   const displayName = useMemo(() => {
     return formData.fullName || user?.name || user?.username || "User"
@@ -144,9 +146,15 @@ export function PersonalProfilePanel() {
   return (
     <div className="flex flex-col gap-4">
       <Card>
-        <CardHeader>
-          <CardTitle className="text-card-foreground">Personal Profile</CardTitle>
-          <CardDescription>Xem và thay đổi thông tin cá nhân của bạn</CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-card-foreground">Personal Profile</CardTitle>
+            <CardDescription>Xem và thay đổi thông tin cá nhân của bạn</CardDescription>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setPasswordDialogOpen(true)} className="gap-2">
+            <Lock className="size-4" />
+            Change Password
+          </Button>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -255,6 +263,8 @@ export function PersonalProfilePanel() {
           )}
         </CardContent>
       </Card>
+
+      <ChangePasswordDialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen} accessToken={accessToken} />
     </div>
   )
 }

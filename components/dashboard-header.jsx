@@ -35,7 +35,7 @@ export function DashboardHeader({ title, subtitle, onMenuClick, onLoginClick, is
           <Button
             onClick={onLogoutClick}
             size="sm"
-            className="hidden sm:flex gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+            className="flex gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
           >
             <LogOut className="size-4" />
             Sign out
@@ -44,7 +44,7 @@ export function DashboardHeader({ title, subtitle, onMenuClick, onLoginClick, is
           <Button
             onClick={onLoginClick}
             size="sm"
-            className="hidden sm:flex gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+            className="flex gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
           >
             <LogIn className="size-4" />
             Sign in

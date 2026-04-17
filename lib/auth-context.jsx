@@ -47,7 +47,7 @@ export function AuthProvider({ children }) {
     try {
       const refreshTokenValue = localStorage.getItem('refreshToken')
       if (!refreshTokenValue) {
-        console.error('❌ No refresh token available')
+        console.warn('⚠️ No refresh token available - user not logged in')
         await logout()
         return false
       }
@@ -106,14 +106,18 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const bootstrapAuth = async () => {
       const token = localStorage.getItem('accessToken')
+      const refreshToken = localStorage.getItem('refreshToken')
       const savedUsername = localStorage.getItem('username') || 'User'
 
       if (!token) {
         // No access token, try refresh token before considering session expired
-        const refreshed = await refreshAccessToken()
-        if (!refreshed) {
-          setError('Phiên đăng nhập đã hết hạn')
+        if (refreshToken) {
+          const refreshed = await refreshAccessToken()
+          if (!refreshed) {
+            setError('Phiên đăng nhập đã hết hạn')
+          }
         }
+        // If no refresh token either, user is simply not logged in - this is normal
         setLoading(false)
         return
       }

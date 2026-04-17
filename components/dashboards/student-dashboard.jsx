@@ -110,7 +110,12 @@ export function StudentDashboard({ activeSection = "dashboard" }) {
         />
       )}
       {activeSection === "my-enrollments" && (
-        <MyEnrollments activities={activities} enrolled={localEnrolled} />
+        <MyEnrollments 
+          activities={activities} 
+          enrolled={localEnrolled}
+          onUnenroll={handleUnenrollClick}
+          unenrollingActivityIds={unenrollingActivityIds}
+        />
       )}
       {activeSection === "announcements" && (
         <StudentAnnouncements />

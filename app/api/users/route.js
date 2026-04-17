@@ -1,3 +1,5 @@
+import { tr } from "date-fns/locale/tr"
+
 export async function GET(req) {
   try {
     const authHeader = req.headers.get('authorization')

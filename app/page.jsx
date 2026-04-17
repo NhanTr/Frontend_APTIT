@@ -30,12 +30,9 @@ function AppContent() {
   useEffect(() => {
     if (isAuthenticated && user) {
       const config = dashboardConfig[user.role]
-      console.log('👤 User logged in:', { role: user.role, username: user.username })
-      console.log('🎯 Navigating to:', { dashboard: config?.title, section: config?.defaultSection })
       setActiveMenu(config?.defaultSection || "dashboard")
     } else {
       // Guest default
-      console.log('👻 Guest user - showing guest dashboard')
       setActiveMenu("browse-activities")
     }
   }, [isAuthenticated, user])
