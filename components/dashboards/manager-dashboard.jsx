@@ -1,33 +1,49 @@
 "use client"
 
+import { useState, useEffect, useCallback } from "react"
 import { useRole } from "@/lib/role-context"
-import { StatCard } from "@/components/stat-card"
+import { useUrlFilterSync, areFiltersEqual } from "@/hooks/use-url-filter-sync"
 import { PersonalProfilePanel } from "@/components/profile/personal-profile-panel"
 import { StatusBadge, CategoryBadge } from "@/components/status-badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ActivityFilter } from "@/components/student/activity-filter"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import {
-  CalendarDays,
   Users,
-  TrendingUp,
   Check,
   X,
   MoreHorizontal,
   AlertCircle,
+  CalendarDays,
   Clock,
   FileText,
 } from "lucide-react"
 
 function ActivityApprovalTable() {
-  const { activities, approveActivity, rejectActivity } = useRole()
+  const { activities, approveActivity, rejectActivity, applyFilters } = useRole()
+  const { initialFilters, updateUrlFilters } = useUrlFilterSync()
+  const [filters, setFilters] = useState(() => initialFilters)
   const pendingActivities = activities.filter((a) => a.approvalStatus === "pending")
   const approvedActivities = activities.filter((a) => a.approvalStatus === "approved")
 
+  useEffect(() => {
+    setFilters((prev) => (areFiltersEqual(prev, initialFilters) ? prev : initialFilters))
+  }, [initialFilters])
+
+  const handleFilterChange = useCallback((newFilters) => {
+    if (areFiltersEqual(filters, newFilters)) return
+
+    setFilters(newFilters)
+    applyFilters(newFilters)
+    updateUrlFilters(newFilters)
+  }, [filters, applyFilters, updateUrlFilters])
+
   return (
     <div className="flex flex-col gap-4">
+      <ActivityFilter onFilterChange={handleFilterChange} initialFilters={filters} />
       {/* Pending Activities for Approval */}
       <Card>
         <CardHeader>
@@ -320,34 +336,6 @@ export function ManagerDashboard({ activeSection = "dashboard" }) {
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6">
-      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Total Activities"
-          value={totalActivities}
-          icon={<CalendarDays className="size-5" />}
-          trend={{ value: "+12%", positive: true }}
-          description="from last month"
-        />
-        <StatCard
-          title="Pending Approvals"
-          value={pendingApprovals}
-          icon={<AlertCircle className="size-5" />}
-          description="awaiting review"
-        />
-        <StatCard
-          title="Approved"
-          value={approvedActivities}
-          icon={<TrendingUp className="size-5" />}
-          description="active & verified"
-        />
-        <StatCard
-          title="Reports"
-          value={3}
-          icon={<FileText className="size-5" />}
-          description="available"
-        />
-      </div>
-
       {/* Content Area */}
       {(activeSection === "dashboard" || activeSection === "activity-approvals") && (
         <ActivityApprovalTable />

@@ -1,12 +1,42 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { useAuth } from "./auth-context"
 
 const RoleContext = createContext(undefined)
 
+const emptyFilters = {
+  status: "",
+  sponsor: "",
+  startTime: "",
+  endTime: "",
+  location: "",
+}
+
+function normalizeFilters(value = {}) {
+  return {
+    status: value.status || "",
+    sponsor: value.sponsor || "",
+    startTime: value.startTime || "",
+    endTime: value.endTime || "",
+    location: value.location || "",
+  }
+}
+
+function areFiltersEqual(a, b) {
+  return (
+    (a?.status || "") === (b?.status || "") &&
+    (a?.sponsor || "") === (b?.sponsor || "") &&
+    (a?.startTime || "") === (b?.startTime || "") &&
+    (a?.endTime || "") === (b?.endTime || "") &&
+    (a?.location || "") === (b?.location || "")
+  )
+}
+
 export function RoleProvider({ children }) {
   const {user, accessToken, refreshAccessToken, logout } = useAuth()
+  const searchParams = useSearchParams()
   const [currentUser, setCurrentUser] = useState(null)
   const [activities, setActivities] = useState([])
   const [loading, setLoading] = useState(false)
@@ -17,6 +47,31 @@ export function RoleProvider({ children }) {
   const [pageSize] = useState(10)
   const [totalPages, setTotalPages] = useState(1)
   const [hasMore, setHasMore] = useState(true)
+
+  // Filter state
+  const [filters, setFilters] = useState(() =>
+    normalizeFilters({
+      ...emptyFilters,
+      status: searchParams.get("status"),
+      sponsor: searchParams.get("sponsor"),
+      startTime: searchParams.get("startTime"),
+      endTime: searchParams.get("endTime"),
+      location: searchParams.get("location"),
+    })
+  )
+
+  useEffect(() => {
+    const filtersFromUrl = normalizeFilters({
+      status: searchParams.get("status"),
+      sponsor: searchParams.get("sponsor"),
+      startTime: searchParams.get("startTime"),
+      endTime: searchParams.get("endTime"),
+      location: searchParams.get("location"),
+    })
+
+    setFilters((prev) => (areFiltersEqual(prev, filtersFromUrl) ? prev : filtersFromUrl))
+    setCurrentPage(0)
+  }, [searchParams])
 
   // Helper: Transform backend activity format to frontend format
   function transformActivity(backendActivity) {
@@ -106,7 +161,24 @@ export function RoleProvider({ children }) {
     const fetchActivities = async () => {
       try {
         setLoading(true)
-        const url = `/api/activities?page=${currentPage}&size=${pageSize}`
+        let url = `/api/activities?page=${currentPage}&size=${pageSize}`
+        
+        // Add filter parameters to URL
+        if (filters.status) {
+          url += `&status=${encodeURIComponent(filters.status)}`
+        }
+        if (filters.sponsor) {
+          url += `&sponsor=${encodeURIComponent(filters.sponsor)}`
+        }
+        if (filters.startTime) {
+          url += `&startTime=${encodeURIComponent(filters.startTime)}`
+        }
+        if (filters.endTime) {
+          url += `&endTime=${encodeURIComponent(filters.endTime)}`
+        }
+        if (filters.location) {
+          url += `&location=${encodeURIComponent(filters.location)}`
+        }
         
         console.log('📡 Fetching activities from:', url)
         const response = await makeAuthenticatedRequest(url, { method: 'GET' })
@@ -159,7 +231,7 @@ export function RoleProvider({ children }) {
     }
 
     fetchActivities()
-  }, [accessToken, currentPage, pageSize])
+  }, [accessToken, currentPage, pageSize, filters])
 
   async function createActivity(activityData) {
     if (!accessToken) throw new Error('Not authenticated')
@@ -260,6 +332,12 @@ export function RoleProvider({ children }) {
     }
   }
 
+  // Apply filters and reset to page 0
+  const applyFilters = (newFilters) => {
+    setFilters(newFilters)
+    setCurrentPage(0) // Reset to first page when filters change
+  }
+
   // Reset về trang 0 khi logout (accessToken becomes null)
   useEffect(() => {
     if (!accessToken) {
@@ -285,7 +363,10 @@ export function RoleProvider({ children }) {
       pageSize,
       totalPages,
       hasMore,
-      loadMore
+      loadMore,
+      // Filters
+      filters,
+      applyFilters
     }}>
       {children}
     </RoleContext.Provider>

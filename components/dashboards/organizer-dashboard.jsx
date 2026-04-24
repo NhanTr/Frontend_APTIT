@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRole } from "@/lib/role-context"
 import { useAuth } from "@/lib/auth-context"
-import { StatCard } from "@/components/stat-card"
+import { useUrlFilterSync, areFiltersEqual } from "@/hooks/use-url-filter-sync"
 import { PersonalProfilePanel } from "@/components/profile/personal-profile-panel"
 import { StatusBadge, CategoryBadge } from "@/components/status-badge"
+import { ActivityFilter } from "@/components/student/activity-filter"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -16,7 +17,6 @@ import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
-  BookOpen,
   Users,
   ClipboardList,
   Calendar,
@@ -24,7 +24,6 @@ import {
   Clock,
   CheckCircle2,
   Plus,
-  AlertCircle,
 } from "lucide-react"
 
 const organizerStudents = []
@@ -217,12 +216,28 @@ function CreateActivityForm() {
 }
 
 function MyActivities() {
-  const { activities } = useRole()
+  const { activities, applyFilters } = useRole()
   const { user } = useAuth()
+  const { initialFilters, updateUrlFilters } = useUrlFilterSync()
+  const [filters, setFilters] = useState(() => initialFilters)
   const myActivities = activities.filter((a) => a.instructorId === user.id)
 
+  useEffect(() => {
+    setFilters((prev) => (areFiltersEqual(prev, initialFilters) ? prev : initialFilters))
+  }, [initialFilters])
+
+  const handleFilterChange = useCallback((newFilters) => {
+    if (areFiltersEqual(filters, newFilters)) return
+
+    setFilters(newFilters)
+    applyFilters(newFilters)
+    updateUrlFilters(newFilters)
+  }, [filters, applyFilters, updateUrlFilters])
+
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="space-y-4">
+      <ActivityFilter onFilterChange={handleFilterChange} initialFilters={filters} />
+      <div className="grid gap-4 sm:grid-cols-2">
       {myActivities.map((activity) => (
         <Card key={activity.id} className="bg-card">
           <CardHeader className="pb-3">
@@ -281,6 +296,7 @@ function MyActivities() {
           </CardContent>
         </Card>
       ))}
+      </div>
     </div>
   )
 }
@@ -434,32 +450,6 @@ export function OrganizerDashboard({ activeSection = "dashboard" }) {
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6">
-      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="My Activities"
-          value={myActivities.length}
-          icon={<BookOpen className="size-5" />}
-          description="assigned to you"
-        />
-        <StatCard
-          title="Total Students"
-          value={totalEnrolled}
-          icon={<Users className="size-5" />}
-          description="across all activities"
-        />
-        <StatCard
-          title="Upcoming Events"
-          value={upcoming}
-          icon={<Calendar className="size-5" />}
-          description="in the next 30 days"
-        />
-        <StatCard
-          title="Pending Approval"
-          value={pending}
-          icon={<AlertCircle className="size-5" />}
-          description="awaiting admin review"
-        />
-      </div>
 
       {/* Content Area */}
       {(activeSection === "dashboard" || activeSection === "my-activities") && (

@@ -1,13 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useRole } from "@/lib/role-context"
-import { StatCard } from "@/components/stat-card"
 import { StatusBadge, CategoryBadge } from "@/components/status-badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ActivityFilter } from "@/components/student/activity-filter"
 import {
-  CalendarDays,
   Clock,
   MapPin,
   Calendar,
@@ -17,6 +17,12 @@ import {
 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
+
+const filterKeys = ["status", "sponsor", "startTime", "endTime", "location"]
+
+function areFiltersEqual(a, b) {
+  return filterKeys.every((key) => (a?.[key] || "") === (b?.[key] || ""))
+}
 
 function BrowseActivitiesGuest({ activities, currentPage, hasMore, onLoadMore, loading }) {
   const [selectedActivity, setSelectedActivity] = useState(null)
@@ -195,31 +201,68 @@ function BrowseActivitiesGuest({ activities, currentPage, hasMore, onLoadMore, l
 }
 
 export function GuestDashboard() {
-  const { activities, loadMore, currentPage, hasMore, loading } = useRole()
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const { activities, loadMore, currentPage, hasMore, loading, applyFilters } = useRole()
+  const initialFilters = useMemo(() => {
+    return {
+      status: searchParams.get("status") || "",
+      sponsor: searchParams.get("sponsor") || "",
+      startTime: searchParams.get("startTime") || "",
+      endTime: searchParams.get("endTime") || "",
+      location: searchParams.get("location") || "",
+    }
+  }, [searchParams])
+
+  const [filters, setFilters] = useState(() => initialFilters)
+
+  useEffect(() => {
+    setFilters((prev) => (areFiltersEqual(prev, initialFilters) ? prev : initialFilters))
+  }, [initialFilters])
+
+  const updateUrlFilters = useCallback((nextFilters) => {
+    const nextParams = new URLSearchParams(searchParams.toString())
+
+    for (const key of filterKeys) {
+      const value = nextFilters[key]
+      if (value) {
+        nextParams.set(key, value)
+      } else {
+        nextParams.delete(key)
+      }
+    }
+
+    const query = nextParams.toString()
+    const nextUrl = query ? `${pathname}?${query}` : pathname
+    const currentQuery = searchParams.toString()
+    const currentUrl = currentQuery ? `${pathname}?${currentQuery}` : pathname
+
+    if (nextUrl !== currentUrl) {
+      router.replace(nextUrl, { scroll: false })
+    }
+  }, [pathname, router, searchParams])
+
+  const handleFilterChange = useCallback((newFilters) => {
+    if (areFiltersEqual(filters, newFilters)) return
+
+    setFilters(newFilters)
+    applyFilters(newFilters)
+    updateUrlFilters(newFilters)
+  }, [filters, applyFilters, updateUrlFilters])
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6">
-      <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-2">
-        <StatCard
-          title="Total Activities"
-          value={activities.length}
-          icon={<CalendarDays className="size-5" />}
-          description="open for enrollment"
-        />
-        <StatCard
-          title="Available Spots"
-          value={activities.reduce((sum, a) => sum + Math.max(0, a.capacity - a.enrolled), 0)}
-          icon={<Users className="size-5" />}
-          description="across all activities"
-        />
-      </div>
-
       <Card>
         <CardHeader>
           <CardTitle className="text-card-foreground">Browse Activities</CardTitle>
           <CardDescription>View all available activities and events</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
+          <ActivityFilter
+            onFilterChange={handleFilterChange}
+            initialFilters={filters}
+          />
           <BrowseActivitiesGuest 
             activities={activities}
             currentPage={currentPage}

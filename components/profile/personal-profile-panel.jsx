@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useRef } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -31,6 +31,9 @@ export function PersonalProfilePanel() {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
+  
+  // Track ongoing fetch request to prevent duplicate calls in StrictMode
+  const fetchControllerRef = useRef(null)
 
   const displayName = useMemo(() => {
     return formData.fullName || user?.name || user?.username || "User"
@@ -52,6 +55,15 @@ export function PersonalProfilePanel() {
       setLoading(true)
       setError("")
 
+      // Abort previous request if still in progress (prevents duplicate requests in StrictMode)
+      if (fetchControllerRef.current) {
+        fetchControllerRef.current.abort()
+      }
+
+      // Create new AbortController for this request
+      const abortController = new AbortController()
+      fetchControllerRef.current = abortController
+
       try {
         const response = await fetch("/api/profile", {
           method: "GET",
@@ -59,11 +71,20 @@ export function PersonalProfilePanel() {
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
           },
+          signal: abortController.signal,
         })
+
+        // Only process response if request wasn't aborted
+        if (abortController.signal.aborted) {
+          return
+        }
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
-          throw new Error(errorData.error || "Không thể tải thông tin cá nhân")
+          const error = new Error(errorData.error || "Không thể tải thông tin cá nhân")
+          // Attach status code to error object for detection
+          error.status = response.status
+          throw error
         }
 
         const data = await response.json()
@@ -78,14 +99,82 @@ export function PersonalProfilePanel() {
         setProfile(normalized)
         setFormData(normalized)
       } catch (err) {
-        setError(err.message || "Không thể tải thông tin cá nhân")
+        // Ignore abort errors
+        if (err.name !== "AbortError") {
+          // If 404 status or profile not found, auto-create empty profile
+          if (err.status === 404 || err.message.includes("không tìm thấy")) {
+            console.log("📝 Profile not found (404), auto-creating empty profile...")
+            await createEmptyProfile()
+          } else {
+            setError(err.message || "Không thể tải thông tin cá nhân")
+            console.error("❌ Load profile error:", err)
+          }
+        }
       } finally {
         setLoading(false)
       }
     }
 
     loadProfile()
+
+    // Cleanup: cancel fetch request when effect re-runs or unmounts
+    return () => {
+      if (fetchControllerRef.current) {
+        fetchControllerRef.current.abort()
+      }
+    }
   }, [user, accessToken])
+
+  // Auto-create empty profile when 404
+  const createEmptyProfile = async () => {
+    if (!accessToken) return
+
+    try {
+      // Create empty profile with null/empty values
+      const emptyProfile = {
+        fullName: "",
+        studentCode: "",
+        department: "",
+        phone: "",
+        avatarUrl: "",
+      }
+
+      const response = await fetch("/api/profile", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(emptyProfile),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error("❌ Failed to create empty profile:", errorData)
+        setProfile(defaultProfile)
+        setFormData(defaultProfile)
+        return
+      }
+
+      const data = await response.json()
+      const result = data?.result || data
+
+      const normalized = {
+        ...defaultProfile,
+        ...result,
+        fullName: result?.fullName || user?.name || user?.username || "",
+      }
+
+      setProfile(normalized)
+      setFormData(normalized)
+      console.log("✅ Empty profile created successfully")
+    } catch (err) {
+      console.error("❌ Create empty profile error:", err)
+      // Fallback to default profile
+      setProfile(defaultProfile)
+      setFormData(defaultProfile)
+    }
+  }
 
   const handleChange = (event) => {
     const { name, value } = event.target

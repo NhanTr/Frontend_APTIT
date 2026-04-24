@@ -1,26 +1,46 @@
 "use client"
 
+import { useState, useEffect, useCallback } from "react"
 import { useRole } from "@/lib/role-context"
-import { StatCard } from "@/components/stat-card"
+import { useUrlFilterSync, areFiltersEqual } from "@/hooks/use-url-filter-sync"
 import { PersonalProfilePanel } from "@/components/profile/personal-profile-panel"
+import { StatusBadge, CategoryBadge } from "@/components/status-badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ActivityFilter } from "@/components/student/activity-filter"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Users,
-  Bell,
   AlertCircle,
   MoreHorizontal,
+  Clock,
+  Check,
+  X,
 } from "lucide-react"
 
 function ActivityApprovalTable() {
-  const { activities, approveActivity, rejectActivity } = useRole()
+  const { activities, approveActivity, rejectActivity, applyFilters } = useRole()
+  const { initialFilters, updateUrlFilters } = useUrlFilterSync()
+  const [filters, setFilters] = useState(() => initialFilters)
   const pendingActivities = activities.filter((a) => a.approvalStatus === "pending")
   const approvedActivities = activities.filter((a) => a.approvalStatus === "approved")
 
+  useEffect(() => {
+    setFilters((prev) => (areFiltersEqual(prev, initialFilters) ? prev : initialFilters))
+  }, [initialFilters])
+
+  const handleFilterChange = useCallback((newFilters) => {
+    if (areFiltersEqual(filters, newFilters)) return
+
+    setFilters(newFilters)
+    applyFilters(newFilters)
+    updateUrlFilters(newFilters)
+  }, [filters, applyFilters, updateUrlFilters])
+
   return (
     <div className="flex flex-col gap-4">
+      <ActivityFilter onFilterChange={handleFilterChange} initialFilters={filters} />
       {/* Pending Activities for Approval */}
       <Card>
         <CardHeader>
@@ -420,34 +440,6 @@ export function AdminDashboard({ activeSection = "dashboard" }) {
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6">
-      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Total Students"
-          value={totalStudents}
-          icon={<Users className="size-5" />}
-          trend={{ value: "+5%", positive: true }}
-          description="this month"
-        />
-        <StatCard
-          title="Active Students"
-          value={activeStudents}
-          icon={<Users className="size-5" />}
-          description="currently active"
-        />
-        <StatCard
-          title="Inactive Students"
-          value={inactiveStudents}
-          icon={<AlertCircle className="size-5" />}
-          description="need attention"
-        />
-        <StatCard
-          title="Announcements"
-          value={4}
-          icon={<Bell className="size-5" />}
-          description="published"
-        />
-      </div>
-
       {/* Content Area */}
       {(activeSection === "dashboard" || activeSection === "students") && (
         <StudentsList />

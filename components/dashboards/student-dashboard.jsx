@@ -1,20 +1,35 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRole } from "@/lib/role-context"
 import { useStudentEnrollment } from "@/hooks/use-student-enrollment"
-import { StatCard } from "@/components/stat-card"
+import { useUrlFilterSync, areFiltersEqual } from "@/hooks/use-url-filter-sync"
 import { ActivityGrid } from "@/components/student/activity-grid"
+import { ActivityFilter } from "@/components/student/activity-filter"
 import { MyEnrollments } from "@/components/student/my-enrollments"
 import { StudentAnnouncements } from "@/components/student/announcements"
 import { PersonalProfilePanel } from "@/components/profile/personal-profile-panel"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { GraduationCap, CalendarDays, Calendar, AlertCircle, X } from "lucide-react"
+import { AlertCircle, X } from "lucide-react"
 
 export function StudentDashboard({ activeSection = "dashboard" }) {
-  const { activities, loadMore, currentPage, hasMore, loading, enrolled } = useRole()
+  const { activities, loadMore, currentPage, hasMore, loading, enrolled, applyFilters } = useRole()
+  const { initialFilters, updateUrlFilters } = useUrlFilterSync()
+  const [filters, setFilters] = useState(() => initialFilters)
   const [localEnrolled, setLocalEnrolled] = useState(enrolled || [])
   const { enrollingActivityIds, unenrollingActivityIds, handleEnroll, handleUnenroll, getUserEnrollments, enrollmentError, setEnrollmentError } = useStudentEnrollment()
+
+  useEffect(() => {
+    setFilters((prev) => (areFiltersEqual(prev, initialFilters) ? prev : initialFilters))
+  }, [initialFilters])
+
+  const handleFilterChange = useCallback((newFilters) => {
+    if (areFiltersEqual(filters, newFilters)) return
+
+    setFilters(newFilters)
+    applyFilters(newFilters)
+    updateUrlFilters(newFilters)
+  }, [filters, applyFilters, updateUrlFilters])
 
   // Load user's enrollments from database on mount
   useEffect(() => {
@@ -67,47 +82,23 @@ export function StudentDashboard({ activeSection = "dashboard" }) {
         </Alert>
       )}
 
-      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Enrolled Activities"
-          value={enrolledActivities.length}
-          icon={<GraduationCap className="size-5" />}
-          description="active enrollments"
-        />
-        <StatCard
-          title="Available Activities"
-          value={availableActivities.length}
-          icon={<CalendarDays className="size-5" />}
-          description="open for enrollment"
-        />
-        <StatCard
-          title="Upcoming Events"
-          value={enrolledActivities.filter((a) => a.status === "upcoming").length}
-          icon={<Calendar className="size-5" />}
-          description="in your schedule"
-        />
-        <StatCard
-          title="Announcements"
-          value={0}
-          icon={<AlertCircle className="size-5" />}
-          description="this week"
-        />
-      </div>
-
       {/* Content Area */}
       {(activeSection === "dashboard" || activeSection === "browse-activities") && (
-        <ActivityGrid
-          activities={activities}
-          enrolled={localEnrolled}
-          onEnroll={handleEnrollClick}
-          onUnenroll={handleUnenrollClick}
-          currentPage={currentPage}
-          hasMore={hasMore}
-          onLoadMore={loadMore}
-          loading={loading}
-          enrollingActivityIds={enrollingActivityIds}
-          unenrollingActivityIds={unenrollingActivityIds}
-        />
+        <>
+          <ActivityFilter onFilterChange={handleFilterChange} initialFilters={filters} />
+          <ActivityGrid
+            activities={activities}
+            enrolled={localEnrolled}
+            onEnroll={handleEnrollClick}
+            onUnenroll={handleUnenrollClick}
+            currentPage={currentPage}
+            hasMore={hasMore}
+            onLoadMore={loadMore}
+            loading={loading}
+            enrollingActivityIds={enrollingActivityIds}
+            unenrollingActivityIds={unenrollingActivityIds}
+          />
+        </>
       )}
       {activeSection === "my-enrollments" && (
         <MyEnrollments 

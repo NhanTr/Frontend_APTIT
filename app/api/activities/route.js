@@ -6,11 +6,35 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url)
     const page = searchParams.get('page') || '0'
     const size = searchParams.get('size') || '10'
+    
+    // Extract filter parameters
+    const status = searchParams.get('status')
+    const sponsor = searchParams.get('sponsor')
+    const startTime = searchParams.get('startTime')
+    const endTime = searchParams.get('endTime')
+    const location = searchParams.get('location')
 
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080'
     const url = new URL(`${backendUrl}/api/v1/activities`)
     url.searchParams.append('page', page)
     url.searchParams.append('size', size)
+    
+    // Add filter parameters to backend API call
+    if (status) {
+      url.searchParams.append('status', status)
+    }
+    if (sponsor) {
+      url.searchParams.append('sponsor', sponsor)
+    }
+    if (startTime) {
+      url.searchParams.append('startTime', startTime)
+    }
+    if (endTime) {
+      url.searchParams.append('endTime', endTime)
+    }
+    if (location) {
+      url.searchParams.append('location', location)
+    }
     
     // Build headers - only add Authorization if token exists
     const headers = {

@@ -273,7 +273,7 @@ export function AuthProvider({ children }) {
       setUser(null)
       setError(null)
       
-      router.push('/')
+      router.push('/guest?login=1')
     }
   }
 
