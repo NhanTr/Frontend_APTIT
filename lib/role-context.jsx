@@ -75,19 +75,25 @@ export function RoleProvider({ children }) {
 
   // Helper: Transform backend activity format to frontend format
   function transformActivity(backendActivity) {
+    const status = String(backendActivity.status || '').toLowerCase()
+    const approvalStatus = ["approved", "ongoing", "closed", "completed"].includes(status)
+      ? "approved"
+      : ["draft", "pending", "reviewing"].includes(status)
+        ? "pending"
+        : status
+
     return {
       id: backendActivity.id,
       title: backendActivity.title,
       description: backendActivity.description || '',
       category: 'event', // Backend không có category
-      status: backendActivity.status.toLowerCase(), // "Draft" -> "draft"
-      approvalStatus: backendActivity.status === 'Approved' ? 'approved' : 
-                      backendActivity.status === 'Draft' ? 'pending' : 'approved',
+      status,
+      approvalStatus,
       date: new Date(backendActivity.startTime).toISOString().split('T')[0],
       time: new Date(backendActivity.startTime).toTimeString().slice(0, 5),
       location: backendActivity.location,
-      capacity: 100, // Backend không có capacity, default 100
-      enrolled: 0, // Backend không tính enrolled
+      capacity: backendActivity.maxParticipants ?? 0,
+      enrolled: backendActivity.currentParticipants ?? 0,
       instructor: backendActivity.sponsor || 'Unknown',
       instructorId: backendActivity.organizerId,
       // Additional backend fields
@@ -214,7 +220,8 @@ export function RoleProvider({ children }) {
         
         // Cập nhật pagination info
         setTotalPages(totalPagesFromResponse)
-        setHasMore(currentPage < totalPagesFromResponse)
+        // totalPages is count-based while currentPage is 0-based
+        setHasMore(currentPage + 1 < totalPagesFromResponse)
         setError(null)
       } catch (err) {
         console.error('❌ Error fetching activities:', err.message)

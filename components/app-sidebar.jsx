@@ -38,12 +38,13 @@ const navConfig = {
     { label: "Personal Profile", icon: <UserCog className="size-4" /> },
   ],
   organizer: [
-    { label: "Dashboard", icon: <LayoutDashboard className="size-4" /> },
-    { label: "My Activities", icon: <BookOpen className="size-4" /> },
-    { label: "Create Activity", icon: <Plus className="size-4" /> },
-    { label: "My Students", icon: <Users className="size-4" /> },
-    { label: "Attendance", icon: <ClipboardList className="size-4" /> },
-    { label: "Personal Profile", icon: <UserCog className="size-4" /> },
+    { key: "dashboard", label: "Tổng quan", icon: <LayoutDashboard className="size-4" /> },
+    { key: "my-activities", label: "Hoạt động của tôi", icon: <BookOpen className="size-4" /> },
+    { key: "create-activity", label: "Tạo hoạt động", icon: <Plus className="size-4" /> },
+    { key: "my-students", label: "Sinh viên", icon: <Users className="size-4" /> },
+    { key: "attendance", label: "Điểm danh", icon: <ClipboardList className="size-4" /> },
+    { key: "reports-points", label: "Báo cáo / Điểm", icon: <FileText className="size-4" /> },
+    { key: "personal-profile", label: "Hồ sơ cá nhân", icon: <UserCog className="size-4" /> },
   ],
   student: [
     { label: "Dashboard", icon: <LayoutDashboard className="size-4" /> },
@@ -129,7 +130,7 @@ export function AppSidebar({ isOpen = true, onClose, onMenuClick, activeMenu, ro
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           <ul className="flex flex-col gap-1">
             {items.map((item, index) => {
-              const menuKey = item.label.toLowerCase().replace(/\s+/g, "-")
+              const menuKey = item.key || item.label.toLowerCase().replace(/\s+/g, "-")
               const isActive = activeMenu ? activeMenu === menuKey : index === 0
               return (
                 <li key={item.label}>

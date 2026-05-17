@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { Suspense, useState, useEffect } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { RoleProvider, useRole } from "@/lib/role-context"
@@ -14,7 +14,7 @@ import { ManagerDashboard } from "@/components/dashboards/manager-dashboard"
 const dashboardConfig = {
   admin: { title: "Admin Dashboard", subtitle: "Manage user accounts and system settings", component: AdminDashboard, defaultSection: "dashboard" },
   manager: { title: "Manager Dashboard", subtitle: "Review activities and reports", component: ManagerDashboard, defaultSection: "dashboard" },
-  organizer: { title: "Organizer Dashboard", subtitle: "Manage your activities and students", component: OrganizerDashboard, defaultSection: "dashboard" },
+  organizer: { title: "Bảng điều khiển Organizer", subtitle: "Quản lý hoạt động, sinh viên và điểm danh", component: OrganizerDashboard, defaultSection: "dashboard" },
   student: { title: "Student Dashboard", subtitle: "Your activities and enrollments", component: StudentDashboard, defaultSection: "dashboard" },
 }
 
@@ -121,10 +121,21 @@ function AppContent() {
 
 export default function Page() {
   return (
-    <AuthProvider>
-      <RoleProvider>
-        <AppContent />
-      </RoleProvider>
-    </AuthProvider>
+    <Suspense
+      fallback={
+        <div className="flex h-screen items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin inline-block w-8 h-8 border-b-2 border-primary rounded-full"></div>
+            <p className="mt-4 text-muted-foreground">Đang tải...</p>
+          </div>
+        </div>
+      }
+    >
+      <AuthProvider>
+        <RoleProvider>
+          <AppContent />
+        </RoleProvider>
+      </AuthProvider>
+    </Suspense>
   )
 }

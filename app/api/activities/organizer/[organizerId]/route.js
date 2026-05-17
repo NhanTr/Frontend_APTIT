@@ -1,6 +1,6 @@
 export async function GET(req, { params }) {
   try {
-    const { organizerId } = params
+    const { organizerId } = await params
     const authHeader = req.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '')
 

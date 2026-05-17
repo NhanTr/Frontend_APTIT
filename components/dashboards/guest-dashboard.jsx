@@ -24,6 +24,14 @@ function areFiltersEqual(a, b) {
   return filterKeys.every((key) => (a?.[key] || "") === (b?.[key] || ""))
 }
 
+function isApprovedActivity(activity) {
+  if (activity?.approvalStatus) {
+    return activity.approvalStatus === "approved"
+  }
+
+  return ["approved", "ongoing", "closed", "completed"].includes(String(activity?.status || "").toLowerCase())
+}
+
 function BrowseActivitiesGuest({ activities, currentPage, hasMore, onLoadMore, loading }) {
   const [selectedActivity, setSelectedActivity] = useState(null)
 
@@ -31,7 +39,7 @@ function BrowseActivitiesGuest({ activities, currentPage, hasMore, onLoadMore, l
     <>
       <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {activities
-          .filter((a) => a.status !== "cancelled")
+          .filter(isApprovedActivity)
           .map((activity) => {
             return (
               <Card 
@@ -216,6 +224,10 @@ export function GuestDashboard() {
   }, [searchParams])
 
   const [filters, setFilters] = useState(() => initialFilters)
+  const approvedActivities = useMemo(
+    () => activities.filter(isApprovedActivity),
+    [activities]
+  )
 
   useEffect(() => {
     setFilters((prev) => (areFiltersEqual(prev, initialFilters) ? prev : initialFilters))
@@ -264,7 +276,7 @@ export function GuestDashboard() {
             initialFilters={filters}
           />
           <BrowseActivitiesGuest 
-            activities={activities}
+            activities={approvedActivities}
             currentPage={currentPage}
             hasMore={hasMore}
             onLoadMore={loadMore}

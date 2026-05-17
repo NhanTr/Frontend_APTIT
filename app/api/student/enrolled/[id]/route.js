@@ -1,6 +1,6 @@
 export async function POST(req, { params }) {
   try {
-    const { id } = params
+    const { id } = await params
     const authHeader = req.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '')
 
@@ -38,7 +38,7 @@ export async function POST(req, { params }) {
 
 export async function DELETE(req, { params }) {
   try {
-    const { id } = params
+    const { id } = await params
     const authHeader = req.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '')
 
