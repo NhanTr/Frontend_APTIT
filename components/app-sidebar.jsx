@@ -26,10 +26,13 @@ import { Separator } from "@/components/ui/separator"
 const navConfig = {
   admin: [
     { label: "Dashboard", icon: <LayoutDashboard className="size-4" /> },
-    { label: "Students", icon: <Users className="size-4" /> },
+    { label: "Activity Approvals", icon: <CalendarDays className="size-4" /> },
+    { label: "Users", icon: <Users className="size-4" /> },
     { label: "Announcements", icon: <Bell className="size-4" /> },
-    { label: "Personal Profile", icon: <UserCog className="size-4" /> },
+    { label: "Reports", icon: <FileText className="size-4" /> },
+    { label: "Statistics", icon: <BarChart3 className="size-4" /> },
     { label: "Settings", icon: <Settings className="size-4" /> },
+    { label: "Personal Profile", icon: <UserCog className="size-4" /> },
   ],
   manager: [
     { label: "Dashboard", icon: <LayoutDashboard className="size-4" /> },
@@ -69,8 +72,6 @@ export function AppSidebar({ isOpen = true, onClose, onMenuClick, activeMenu, ro
   // Use provided role or currentUser.role
   const userRole = role || currentUser?.role
   const items = navConfig[userRole]
-  
-  console.log('📍 Sidebar - Role:', userRole, 'Active Menu:', activeMenu)
   
   // Don't render if no role and not guest
   if (!items) {
