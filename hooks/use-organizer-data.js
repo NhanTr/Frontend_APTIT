@@ -170,6 +170,29 @@ export function useOrganizerData() {
           ...prev,
           [activityId]: registrations,
         }))
+        setAttendanceByRegistration((prev) => {
+          const next = { ...prev }
+          registrations.forEach((registration) => {
+            const hasAttendance =
+              registration.attendanceId ||
+              (registration.isPresent !== null && registration.isPresent !== undefined) ||
+              registration.checkInTime ||
+              (registration.earnedPoints !== null && registration.earnedPoints !== undefined)
+
+            if (hasAttendance) {
+              next[registration.id] = {
+                id: registration.attendanceId,
+                registrationId: registration.id,
+                isPresent: registration.isPresent,
+                checkInTime: registration.checkInTime,
+                earnedPoints: registration.earnedPoints,
+              }
+            } else {
+              delete next[registration.id]
+            }
+          })
+          return next
+        })
         return registrations
       } catch (err) {
         setError(err.message)

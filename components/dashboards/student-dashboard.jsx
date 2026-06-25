@@ -1,94 +1,131 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useRole } from "@/lib/role-context"
 import { useStudentEnrollment } from "@/hooks/use-student-enrollment"
 import { useUrlFilterSync, areFiltersEqual } from "@/hooks/use-url-filter-sync"
 import { ActivityGrid } from "@/components/student/activity-grid"
 import { ActivityFilter } from "@/components/student/activity-filter"
 import { MyEnrollments } from "@/components/student/my-enrollments"
+import { MyPoints } from "@/components/student/my-points"
 import { StudentAnnouncements } from "@/components/student/announcements"
 import { PersonalProfilePanel } from "@/components/profile/personal-profile-panel"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, X } from "lucide-react"
 
-export function StudentDashboard({ activeSection = "dashboard" }) {
+function isActiveRegistration(registration) {
+  const status = String(registration.status || registration.registrationStatus || "").trim().toLowerCase()
+  return status === "pending" || status === "approved"
+}
+
+function getRegistrationActivityId(registration) {
+  return registration.activityId || registration.activity_id || registration.id
+}
+
+export function StudentDashboard({ activeSection = "browse-activities" }) {
   const { activities, loadMore, currentPage, hasMore, loading, enrolled, applyFilters } = useRole()
   const { initialFilters, updateUrlFilters } = useUrlFilterSync()
   const [filters, setFilters] = useState(() => initialFilters)
   const [localEnrolled, setLocalEnrolled] = useState(enrolled || [])
-  const { enrollingActivityIds, unenrollingActivityIds, handleEnroll, handleUnenroll, getUserEnrollments, enrollmentError, setEnrollmentError } = useStudentEnrollment()
+  const [registrationStatusByActivity, setRegistrationStatusByActivity] = useState({})
+  const [registrationByActivity, setRegistrationByActivity] = useState({})
+  const {
+    enrollingActivityIds,
+    unenrollingActivityIds,
+    checkingInRegistrationIds,
+    handleEnroll,
+    handleUnenroll,
+    handleCheckIn,
+    getMyPoints,
+    getUserRegistrations,
+    enrollmentError,
+    setEnrollmentError,
+  } = useStudentEnrollment()
 
   useEffect(() => {
     setFilters((prev) => (areFiltersEqual(prev, initialFilters) ? prev : initialFilters))
   }, [initialFilters])
 
-  const handleFilterChange = useCallback((newFilters) => {
-    if (areFiltersEqual(filters, newFilters)) return
+  const handleFilterChange = useCallback(
+    (newFilters) => {
+      if (areFiltersEqual(filters, newFilters)) return
 
-    setFilters(newFilters)
-    applyFilters(newFilters)
-    updateUrlFilters(newFilters)
-  }, [filters, applyFilters, updateUrlFilters])
+      setFilters(newFilters)
+      applyFilters(newFilters)
+      updateUrlFilters(newFilters)
+    },
+    [filters, applyFilters, updateUrlFilters],
+  )
 
-  // Load user's enrollments from database on mount
+  const refreshRegistrations = useCallback(async () => {
+    const registrations = await getUserRegistrations()
+    const activeRegistrations = registrations.filter(isActiveRegistration)
+
+    setLocalEnrolled(activeRegistrations.map(getRegistrationActivityId).filter(Boolean))
+    setRegistrationByActivity(
+      Object.fromEntries(
+        activeRegistrations
+          .map((registration) => [getRegistrationActivityId(registration), registration])
+          .filter(([activityId]) => Boolean(activityId)),
+      ),
+    )
+    setRegistrationStatusByActivity(
+      Object.fromEntries(
+        activeRegistrations
+          .map((registration) => [
+            getRegistrationActivityId(registration),
+            registration.status || registration.registrationStatus,
+          ])
+          .filter(([activityId]) => Boolean(activityId)),
+      ),
+    )
+  }, [getUserRegistrations])
+
   useEffect(() => {
-    const loadEnrollments = async () => {
-      console.log("📋 Loading enrollments from database...")
-      const enrollmentIds = await getUserEnrollments()
-      setLocalEnrolled(enrollmentIds)
-    }
-    loadEnrollments()
-  }, [])
+    refreshRegistrations()
+  }, [refreshRegistrations])
 
   const handleEnrollClick = async (activityId) => {
     const success = await handleEnroll(activityId)
-    // Reload enrollments after attempting to enroll (success or fail)
-    console.log("🔄 Reloading enrollments after enroll attempt...")
-    const enrollmentIds = await getUserEnrollments()
-    setLocalEnrolled(enrollmentIds)
+    await refreshRegistrations()
     return success
   }
 
   const handleUnenrollClick = async (activityId) => {
     const success = await handleUnenroll(activityId)
-    // Reload enrollments after attempting to unenroll (success or fail)
-    console.log("🔄 Reloading enrollments after unenroll attempt...")
-    const enrollmentIds = await getUserEnrollments()
-    setLocalEnrolled(enrollmentIds)
+    await refreshRegistrations()
     return success
   }
 
-  const enrolledActivities = activities.filter((a) => localEnrolled.includes(a.id))
-  const availableActivities = activities.filter(
-    (a) => !localEnrolled.includes(a.id) && a.status !== "cancelled" && a.status !== "completed"
-  )
+  const handleCheckInClick = async (registrationId) => {
+    const success = await handleCheckIn(registrationId)
+    await refreshRegistrations()
+    return success
+  }
+
+  const isDashboardSection = activeSection === "dashboard" || activeSection === "browse-activities"
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6">
-      {/* Error Alert */}
       {enrollmentError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription className="flex items-center justify-between">
             <span>{enrollmentError}</span>
-            <button
-              onClick={() => setEnrollmentError(null)}
-              className="ml-2 inline-flex"
-            >
+            <button onClick={() => setEnrollmentError(null)} className="ml-2 inline-flex">
               <X className="h-4 w-4" />
             </button>
           </AlertDescription>
         </Alert>
       )}
 
-      {/* Content Area */}
-      {(activeSection === "dashboard" || activeSection === "browse-activities") && (
+      {isDashboardSection && (
         <>
           <ActivityFilter onFilterChange={handleFilterChange} initialFilters={filters} />
           <ActivityGrid
             activities={activities}
             enrolled={localEnrolled}
+            registrationStatusByActivity={registrationStatusByActivity}
             onEnroll={handleEnrollClick}
             onUnenroll={handleUnenrollClick}
             currentPage={currentPage}
@@ -101,19 +138,20 @@ export function StudentDashboard({ activeSection = "dashboard" }) {
         </>
       )}
       {activeSection === "my-enrollments" && (
-        <MyEnrollments 
-          activities={activities} 
+        <MyEnrollments
+          activities={activities}
           enrolled={localEnrolled}
+          registrationStatusByActivity={registrationStatusByActivity}
+          registrationByActivity={registrationByActivity}
           onUnenroll={handleUnenrollClick}
+          onCheckIn={handleCheckInClick}
           unenrollingActivityIds={unenrollingActivityIds}
+          checkingInRegistrationIds={checkingInRegistrationIds}
         />
       )}
-      {activeSection === "announcements" && (
-        <StudentAnnouncements />
-      )}
-      {activeSection === "personal-profile" && (
-        <PersonalProfilePanel />
-      )}
+      {activeSection === "my-points" && <MyPoints getMyPoints={getMyPoints} />}
+      {activeSection === "announcements" && <StudentAnnouncements />}
+      {activeSection === "personal-profile" && <PersonalProfilePanel />}
     </div>
   )
 }

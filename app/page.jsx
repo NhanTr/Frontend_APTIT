@@ -15,7 +15,7 @@ const dashboardConfig = {
   admin: { title: "Admin Dashboard", subtitle: "Manage user accounts and system settings", component: AdminDashboard, defaultSection: "dashboard" },
   manager: { title: "Manager Dashboard", subtitle: "Review activities and reports", component: ManagerDashboard, defaultSection: "dashboard" },
   organizer: { title: "Bảng điều khiển Organizer", subtitle: "Quản lý hoạt động, sinh viên và điểm danh", component: OrganizerDashboard, defaultSection: "dashboard" },
-  student: { title: "Student Dashboard", subtitle: "Your activities and enrollments", component: StudentDashboard, defaultSection: "dashboard" },
+  student: { title: "Student Dashboard", subtitle: "Browse activities and manage enrollments", component: StudentDashboard, defaultSection: "browse-activities" },
 }
 
 function AppContent() {

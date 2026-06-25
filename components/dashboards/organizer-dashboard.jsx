@@ -585,11 +585,188 @@ function StudentsPanel({ data }) {
   )
 }
 
+function StudentsPanelV2({ data }) {
+  const [selectedActivityId, setSelectedActivityId] = useState("")
+  const registrations = selectedActivityId ? data.registrationsByActivity[selectedActivityId] || [] : []
+  const selectedActivity = data.activities.find((activity) => activity.id === selectedActivityId)
+  const loadRegistrations = data.loadRegistrations
+
+  const pendingRegistrations = registrations.filter((registration) => {
+    const status = getStatusKey(registration.status)
+    return status === "pending" || status === "registered"
+  })
+  const approvedRegistrations = registrations.filter((registration) => getStatusKey(registration.status) === "approved")
+  const otherRegistrations = registrations.filter((registration) => {
+    const status = getStatusKey(registration.status)
+    return status !== "pending" && status !== "registered" && status !== "approved"
+  })
+
+  useEffect(() => {
+    if (!selectedActivityId && data.activities.length > 0) {
+      setSelectedActivityId(data.activities[0].id)
+    }
+  }, [data.activities, selectedActivityId])
+
+  useEffect(() => {
+    if (selectedActivityId) {
+      loadRegistrations(selectedActivityId)
+    }
+  }, [loadRegistrations, selectedActivityId])
+
+  const reject = async (registration) => {
+    const reason = window.prompt("Nhap ly do tu choi dang ky")
+    if (!reason?.trim()) return
+    await data.rejectRegistration(registration.activityId, registration.studentId, reason.trim())
+  }
+
+  const renderRegistrationTable = (items, showActions = false) => {
+    if (items.length === 0) {
+      return <div className="py-8 text-center text-sm text-muted-foreground">Khong co sinh vien trong nhom nay.</div>
+    }
+
+    return (
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Ma sinh vien</TableHead>
+              <TableHead>Trang thai dang ky</TableHead>
+              <TableHead>Ngay dang ky</TableHead>
+              <TableHead>Nguoi duyet</TableHead>
+              {showActions && <TableHead className="w-44">Thao tac</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.map((registration) => (
+              <TableRow key={registration.id}>
+                <TableCell className="font-medium">{registration.studentId}</TableCell>
+                <TableCell>{registrationBadge(registration.status)}</TableCell>
+                <TableCell className="text-muted-foreground">{formatDateTime(registration.createdAt)}</TableCell>
+                <TableCell className="text-muted-foreground">{registration.approvedBy || "Chua co"}</TableCell>
+                {showActions && (
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        disabled={data.actionLoading}
+                        onClick={() => data.approveRegistration(registration.activityId, registration.studentId)}
+                      >
+                        <CheckCircle2 className="size-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-destructive text-destructive hover:bg-destructive/10"
+                        disabled={data.actionLoading}
+                        onClick={() => reject(registration)}
+                      >
+                        <XCircle className="size-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                )}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <Card>
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle>Sinh vien dang ky</CardTitle>
+            <CardDescription>
+              {selectedActivity
+                ? `Hoat dong: ${selectedActivity.title}`
+                : "Chon hoat dong de xem sinh vien cho duyet va da duyet."}
+            </CardDescription>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <ActivitySelect activities={data.activities} value={selectedActivityId} onChange={setSelectedActivityId} />
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!selectedActivityId || data.actionLoading}
+              onClick={() => loadRegistrations(selectedActivityId)}
+            >
+              <RefreshCw className="mr-2 size-4" />
+              Tai lai
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {!selectedActivityId ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">Chon mot hoat dong de xem danh sach.</div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-lg border border-warning/20 bg-warning/5 p-4">
+                <p className="text-sm text-muted-foreground">Cho duyet</p>
+                <p className="text-2xl font-semibold text-card-foreground">{pendingRegistrations.length}</p>
+              </div>
+              <div className="rounded-lg border border-success/20 bg-success/5 p-4">
+                <p className="text-sm text-muted-foreground">Da duyet</p>
+                <p className="text-2xl font-semibold text-card-foreground">{approvedRegistrations.length}</p>
+              </div>
+              <div className="rounded-lg border border-border bg-secondary/30 p-4">
+                <p className="text-sm text-muted-foreground">Khac</p>
+                <p className="text-2xl font-semibold text-card-foreground">{otherRegistrations.length}</p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {selectedActivityId && (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle>Danh sach cho duyet</CardTitle>
+              <CardDescription>Sinh vien moi dang ky, can BTC/CLB duyet hoac tu choi.</CardDescription>
+            </CardHeader>
+            <CardContent>{renderRegistrationTable(pendingRegistrations, true)}</CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Danh sach da duyet</CardTitle>
+              <CardDescription>Sinh vien da duoc xac nhan tham gia hoat dong.</CardDescription>
+            </CardHeader>
+            <CardContent>{renderRegistrationTable(approvedRegistrations)}</CardContent>
+          </Card>
+
+          {otherRegistrations.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Dang ky khac</CardTitle>
+                <CardDescription>Cac dang ky da huy hoac bi tu choi.</CardDescription>
+              </CardHeader>
+              <CardContent>{renderRegistrationTable(otherRegistrations)}</CardContent>
+            </Card>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
 function AttendancePanel({ data }) {
   const [selectedActivityId, setSelectedActivityId] = useState("")
   const ongoingActivities = useMemo(() => data.activities.filter((activity) => activity.statusKey === "ongoing"), [data.activities])
   const registrations = selectedActivityId ? data.registrationsByActivity[selectedActivityId] || [] : []
   const approvedRegistrations = registrations.filter((registration) => getStatusKey(registration.status) === "approved")
+  const getAttendance = (registration) => data.attendanceByRegistration[registration.id] || {
+    id: registration.attendanceId,
+    registrationId: registration.id,
+    isPresent: registration.isPresent,
+    checkInTime: registration.checkInTime,
+    earnedPoints: registration.earnedPoints,
+  }
+  const checkedInCount = approvedRegistrations.filter((registration) => Boolean(getAttendance(registration)?.checkInTime)).length
+  const presentCount = approvedRegistrations.filter((registration) => getAttendance(registration)?.isPresent === true).length
   const loadRegistrations = data.loadRegistrations
 
   useEffect(() => {
@@ -621,9 +798,25 @@ function AttendancePanel({ data }) {
           <div className="py-10 text-center text-sm text-muted-foreground">Chưa có đăng ký đã duyệt.</div>
         ) : (
           <div className="flex flex-col gap-3">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-lg border border-border bg-background px-3 py-2">
+                <p className="text-xs text-muted-foreground">Tong da duyet</p>
+                <p className="text-xl font-semibold text-card-foreground">{approvedRegistrations.length}</p>
+              </div>
+              <div className="rounded-lg border border-success/20 bg-success/5 px-3 py-2">
+                <p className="text-xs text-muted-foreground">Da check-in</p>
+                <p className="text-xl font-semibold text-success">{checkedInCount}</p>
+              </div>
+              <div className="rounded-lg border border-border bg-background px-3 py-2">
+                <p className="text-xs text-muted-foreground">Co mat</p>
+                <p className="text-xl font-semibold text-card-foreground">{presentCount}</p>
+              </div>
+            </div>
             {approvedRegistrations.map((registration) => {
-              const attendance = data.attendanceByRegistration[registration.id]
-              const checked = attendance?.isPresent === true
+              const attendance = getAttendance(registration)
+              const checkedIn = Boolean(attendance?.checkInTime)
+              const present = attendance?.isPresent === true
+              const checked = present
               return (
                 <div
                   key={registration.id}
@@ -633,14 +826,20 @@ function AttendancePanel({ data }) {
                     <p className="font-medium text-card-foreground">{registration.studentId}</p>
                     <p className="text-sm text-muted-foreground">Đăng ký: {registration.id}</p>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Badge
+                      variant="outline"
+                      className={checkedIn ? "bg-success/10 text-success border-success/20" : "bg-muted text-muted-foreground border-border"}
+                    >
+                      {checkedIn ? "Da check-in" : "Chua check-in"}
+                    </Badge>
                     <Checkbox
-                      checked={checked}
+                      checked={present}
                       disabled={data.actionLoading}
                       onCheckedChange={(value) => data.checkInRegistration(registration.id, !!value)}
                       aria-label={`Điểm danh ${registration.studentId}`}
                     />
-                    <Badge variant="outline" className={checked ? "bg-success/10 text-success border-success/20" : "text-muted-foreground"}>
+                    <Badge variant="outline" className={present ? "bg-success/10 text-success border-success/20" : "text-muted-foreground"}>
                       {checked ? "Có mặt" : "Chưa điểm danh"}
                     </Badge>
                   </div>
@@ -827,7 +1026,7 @@ function OrganizerManagementDashboard({ activeSection }) {
 
       {activeSection === "my-activities" && <MyActivitiesPanel data={data} />}
       {activeSection === "create-activity" && <CreateActivityPanel data={data} />}
-      {activeSection === "my-students" && <StudentsPanel data={data} />}
+      {activeSection === "my-students" && <StudentsPanelV2 data={data} />}
       {activeSection === "attendance" && <AttendancePanel data={data} />}
       {activeSection === "reports-points" && <ReportsAndPointsPanel data={data} />}
       {activeSection === "personal-profile" && <PersonalProfilePanel />}

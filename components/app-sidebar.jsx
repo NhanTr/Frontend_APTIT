@@ -47,9 +47,9 @@ const navConfig = {
     { key: "personal-profile", label: "Hồ sơ cá nhân", icon: <UserCog className="size-4" /> },
   ],
   student: [
-    { label: "Dashboard", icon: <LayoutDashboard className="size-4" /> },
-    { label: "Browse Activities", icon: <CalendarDays className="size-4" /> },
+    { key: "browse-activities", label: "Dashboard", icon: <LayoutDashboard className="size-4" /> },
     { label: "My Enrollments", icon: <GraduationCap className="size-4" /> },
+    { key: "my-points", label: "My Points", icon: <BarChart3 className="size-4" /> },
     { label: "Announcements", icon: <Bell className="size-4" /> },
     { label: "Personal Profile", icon: <UserCog className="size-4" /> },
   ],
