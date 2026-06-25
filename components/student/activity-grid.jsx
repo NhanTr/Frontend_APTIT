@@ -24,6 +24,7 @@ export function ActivityGrid({
   loading = false,
   enrollingActivityIds = [],
   unenrollingActivityIds = [],
+  registrationStatusByActivity = {},
 }) {
   const [selectedActivity, setSelectedActivity] = useState(null)
   const [localEnrolled, setLocalEnrolled] = useState(enrolled)
@@ -55,6 +56,8 @@ export function ActivityGrid({
           .filter((a) => a.status !== "cancelled")
           .map((activity) => {
             const isEnrolled = localEnrolled.includes(activity.id)
+            const registrationStatus = String(registrationStatusByActivity[activity.id] || "").trim().toLowerCase()
+            const registrationLabel = registrationStatus === "approved" ? "Approved" : "Pending approval"
             const isFull = activity.enrolled >= activity.capacity
             return (
               <Card
@@ -104,18 +107,23 @@ export function ActivityGrid({
                       <Progress value={(activity.enrolled / activity.capacity) * 100} className="h-1.5" />
                     </div>
                     {isEnrolled ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full mt-1 border-destructive/30 text-destructive hover:bg-destructive/10"
-                        disabled={unenrollingActivityIds.includes(activity.id)}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleUnenroll(activity.id)
-                        }}
-                      >
-                        {unenrollingActivityIds.includes(activity.id) ? "Unenrolling..." : "Unenroll"}
-                      </Button>
+                      <div className="flex flex-col gap-2">
+                        <div className="rounded-md border border-warning/20 bg-warning/5 px-3 py-2 text-center text-xs font-medium text-card-foreground">
+                          {registrationLabel}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full border-destructive/30 text-destructive hover:bg-destructive/10"
+                          disabled={unenrollingActivityIds.includes(activity.id)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleUnenroll(activity.id)
+                          }}
+                        >
+                          {unenrollingActivityIds.includes(activity.id) ? "Unenrolling..." : "Cancel registration"}
+                        </Button>
+                      </div>
                     ) : activity.status === "completed" ? (
                       <Button variant="outline" size="sm" className="w-full mt-1" disabled>
                         Completed
@@ -216,19 +224,25 @@ export function ActivityGrid({
                 {/* Action Buttons */}
                 <div className="flex gap-2">
                   {localEnrolled.includes(selectedActivity.id) ? (
-                    <Button
-                      variant="destructive"
-                      className="flex-1"
-                      disabled={unenrollingActivityIds.includes(selectedActivity.id)}
-                      onClick={() => {
-                        handleUnenroll(selectedActivity.id)
-                        setSelectedActivity(null)
-                      }}
-                    >
-                      {unenrollingActivityIds.includes(selectedActivity.id)
-                        ? "Unenrolling..."
-                        : "Unenroll from Activity"}
-                    </Button>
+                    <div className="flex flex-1 flex-col gap-2">
+                      <div className="rounded-md border border-warning/20 bg-warning/5 px-3 py-2 text-center text-sm font-medium text-card-foreground">
+                        {String(registrationStatusByActivity[selectedActivity.id] || "").trim().toLowerCase() === "approved"
+                          ? "Registration approved"
+                          : "Waiting for organizer approval"}
+                      </div>
+                      <Button
+                        variant="destructive"
+                        disabled={unenrollingActivityIds.includes(selectedActivity.id)}
+                        onClick={() => {
+                          handleUnenroll(selectedActivity.id)
+                          setSelectedActivity(null)
+                        }}
+                      >
+                        {unenrollingActivityIds.includes(selectedActivity.id)
+                          ? "Unenrolling..."
+                          : "Cancel registration"}
+                      </Button>
+                    </div>
                   ) : selectedActivity.status === "completed" ? (
                     <Button disabled className="flex-1">
                       Activity Completed

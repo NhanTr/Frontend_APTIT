@@ -1,70 +1,73 @@
-import { useState, useCallback } from "react"
+import { useCallback, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
+
+type RegistrationLike = {
+  id?: string
+  activityId?: string
+  activity_id?: string
+  status?: string
+  registrationStatus?: string
+  attendanceId?: string
+  isPresent?: boolean | null
+  checkInTime?: string | null
+  earnedPoints?: number | null
+}
+
+function normalizeRegistrationList(data: any): RegistrationLike[] {
+  if (Array.isArray(data)) return data
+  if (Array.isArray(data?.result)) return data.result
+  if (Array.isArray(data?.data)) return data.data
+  if (Array.isArray(data?.registrations)) return data.registrations
+  return []
+}
+
+function isActiveRegistration(status: string | undefined) {
+  const normalized = String(status || "").trim().toLowerCase()
+  return normalized === "pending" || normalized === "approved"
+}
 
 export function useStudentEnrollment() {
   const authContext = useAuth() as {
     refreshAccessToken: () => Promise<boolean>
     logout: () => Promise<void>
   }
-  
+
   const refreshAccessToken = authContext.refreshAccessToken
   const logout = authContext.logout
 
   const [enrollingActivityIds, setEnrollingActivityIds] = useState<string[]>([])
   const [unenrollingActivityIds, setUnenrollingActivityIds] = useState<string[]>([])
+  const [checkingInRegistrationIds, setCheckingInRegistrationIds] = useState<string[]>([])
   const [enrollmentError, setEnrollmentError] = useState<string | null>(null)
 
-  // Make authenticated request with automatic token refresh on 401
-  // Read token from localStorage each time to avoid stale closure
   const makeAuthenticatedRequest = useCallback(
-    async (
-      url: string,
-      options: RequestInit = {},
-      retryCount = 0
-    ): Promise<Response | null> => {
-      const maxRetries = 1
-
+    async (url: string, options: RequestInit = {}, retryCount = 0): Promise<Response | null> => {
       try {
-        // Read fresh token from localStorage each time
-        const accessToken = localStorage.getItem("accessToken")
-        
         const headers: Record<string, string> = {
           "Content-Type": "application/json",
         }
 
-        // Add custom headers if provided
         if (options.headers && typeof options.headers === "object") {
           Object.assign(headers, options.headers)
         }
 
+        const accessToken = localStorage.getItem("accessToken")
         if (accessToken) {
-          headers["Authorization"] = `Bearer ${accessToken}`
+          headers.Authorization = `Bearer ${accessToken}`
         }
-
-        console.log(`📡 Request: ${options.method || 'GET'} ${url}`)
-        console.log(`🔐 Headers:`, { Authorization: headers["Authorization"] ? "Bearer ..." : "none" })
-        console.log(`📦 Body:`, options.body || "no body")
 
         const response = await fetch(url, {
           ...options,
           headers,
         })
 
-        console.log(`📊 Response: ${response.status} ${response.statusText}`)
-
-        // If token expired, try to refresh and retry
-        if (response.status === 401 && retryCount < maxRetries) {
-          console.log("⏰ Token expired (401), attempting to refresh...")
+        if (response.status === 401 && retryCount < 1) {
           const refreshed = await refreshAccessToken()
-
           if (refreshed) {
-            console.log("✅ Token refreshed, retrying request...")
             return makeAuthenticatedRequest(url, options, retryCount + 1)
-          } else {
-            console.error("❌ Token refresh failed, logging out...")
-            logout()
-            return null
           }
+          await logout()
+          return null
         }
 
         return response
@@ -73,10 +76,9 @@ export function useStudentEnrollment() {
         return null
       }
     },
-    [refreshAccessToken, logout]
+    [logout, refreshAccessToken],
   )
 
-  // Get all activities
   const getAllActivities = useCallback(async () => {
     try {
       const response = await makeAuthenticatedRequest("/api/activities")
@@ -88,121 +90,147 @@ export function useStudentEnrollment() {
     }
   }, [makeAuthenticatedRequest])
 
-  // Get user's enrolled activities
-  const getUserEnrollments = useCallback(async () => {
+  const getUserRegistrations = useCallback(async () => {
     try {
-      console.log("📥 Fetching user enrollments...")
       const response = await makeAuthenticatedRequest("/api/registrations")
-      if (!response?.ok) {
-        console.error("❌ Failed to fetch enrollments:", response?.status)
-        return []
-      }
+      if (!response?.ok) return []
+
       const data = await response.json()
-      console.log("✅ Raw enrollment response:", data)
-      
-      // Extract activity IDs from response
-      let enrollmentIds: string[] = []
-      
-      if (Array.isArray(data)) {
-        // If response is array, extract IDs
-        enrollmentIds = data.map((item: any) => {
-          return item.activityId || item.activity_id || item.id
-        }).filter(Boolean)
-      } else if (data?.data && Array.isArray(data.data)) {
-        // If wrapped in data field
-        enrollmentIds = data.data.map((item: any) => {
-          return item.activityId || item.activity_id || item.id
-        }).filter(Boolean)
-      } else if (data?.registrations && Array.isArray(data.registrations)) {
-        // If wrapped in registrations field
-        enrollmentIds = data.registrations.map((item: any) => {
-          return item.activityId || item.activity_id || item.id
-        }).filter(Boolean)
-      }
-      
-      console.log("🎯 Extracted activity IDs:", enrollmentIds)
-      return enrollmentIds
+      return normalizeRegistrationList(data)
     } catch (error) {
-      console.error("Error fetching enrollments:", error)
+      console.error("Error fetching registrations:", error)
       return []
     }
   }, [makeAuthenticatedRequest])
 
-  // Enroll in activity
+  const getUserEnrollments = useCallback(async () => {
+    try {
+      const registrations = await getUserRegistrations()
+      return registrations
+        .filter((item) => isActiveRegistration(item.status || item.registrationStatus))
+        .map((item) => item.activityId || item.activity_id || item.id)
+        .filter(Boolean) as string[]
+    } catch (error) {
+      console.error("Error fetching enrollments:", error)
+      return []
+    }
+  }, [getUserRegistrations])
+
   const handleEnroll = useCallback(
     async (activityId: string): Promise<boolean> => {
       setEnrollingActivityIds((prev) => [...prev, activityId])
       setEnrollmentError(null)
       try {
-        const response = await makeAuthenticatedRequest(`/api/registrations`, {
+        const response = await makeAuthenticatedRequest("/api/registrations", {
           method: "POST",
           body: JSON.stringify({ activityId }),
         })
-        
+
         if (!response?.ok) {
           const errorData = response ? await response.json().catch(() => ({})) : {}
-          const errorMsg = errorData?.error || errorData?.message || "Enrollment failed"
-          console.error("❌ Enrollment error:", errorMsg)
-          setEnrollmentError(errorMsg)
+          setEnrollmentError(errorData?.error || errorData?.message || "Enrollment failed")
           return false
         }
-        
-        console.log("✅ Enrollment successful")
+
         return true
       } catch (error) {
-        console.error("Enrollment error:", error)
         setEnrollmentError(error instanceof Error ? error.message : "Enrollment failed")
         return false
       } finally {
         setEnrollingActivityIds((prev) => prev.filter((id) => id !== activityId))
       }
     },
-    [makeAuthenticatedRequest]
+    [makeAuthenticatedRequest],
   )
 
-  // Unenroll from activity
   const handleUnenroll = useCallback(
     async (activityId: string): Promise<boolean> => {
       setUnenrollingActivityIds((prev) => [...prev, activityId])
       setEnrollmentError(null)
       try {
-        const response = await makeAuthenticatedRequest(`/api/registrations`, {
+        const response = await makeAuthenticatedRequest("/api/registrations", {
           method: "DELETE",
           body: JSON.stringify({ activityId }),
         })
-        
+
         if (!response?.ok) {
           const errorData = response ? await response.json().catch(() => ({})) : {}
-          const errorMsg = errorData?.error || errorData?.message || "Unenrollment failed"
-          console.error("❌ Unenrollment error:", errorMsg)
-          setEnrollmentError(errorMsg)
+          setEnrollmentError(errorData?.error || errorData?.message || "Unenrollment failed")
           return false
         }
-        
-        console.log("✅ Unenrollment successful")
+
         return true
       } catch (error) {
-        console.error("Unenrollment error:", error)
         setEnrollmentError(error instanceof Error ? error.message : "Unenrollment failed")
         return false
       } finally {
         setUnenrollingActivityIds((prev) => prev.filter((id) => id !== activityId))
       }
     },
-    [makeAuthenticatedRequest]
+    [makeAuthenticatedRequest],
+  )
+
+  const handleCheckIn = useCallback(
+    async (registrationId: string): Promise<boolean> => {
+      setCheckingInRegistrationIds((prev) => [...prev, registrationId])
+      setEnrollmentError(null)
+      try {
+        const response = await makeAuthenticatedRequest("/api/attendance/check-in", {
+          method: "POST",
+          body: JSON.stringify({ registrationId }),
+        })
+
+        if (!response?.ok) {
+          const errorData = response ? await response.json().catch(() => ({})) : {}
+          setEnrollmentError(errorData?.error || errorData?.message || "Check-in failed")
+          return false
+        }
+
+        return true
+      } catch (error) {
+        setEnrollmentError(error instanceof Error ? error.message : "Check-in failed")
+        return false
+      } finally {
+        setCheckingInRegistrationIds((prev) => prev.filter((id) => id !== registrationId))
+      }
+    },
+    [makeAuthenticatedRequest],
+  )
+
+  const getMyPoints = useCallback(
+    async (filters: { year?: string; semester?: string } = {}) => {
+      try {
+        const params = new URLSearchParams()
+        if (filters.year) params.set("year", filters.year)
+        if (filters.semester) params.set("semester", filters.semester)
+
+        const query = params.toString()
+        const response = await makeAuthenticatedRequest(`/api/student/points${query ? `?${query}` : ""}`)
+        if (!response?.ok) return { totalPoints: 0, activities: [] }
+
+        const data = await response.json()
+        return data?.result || data || { totalPoints: 0, activities: [] }
+      } catch (error) {
+        console.error("Error fetching student points:", error)
+        return { totalPoints: 0, activities: [] }
+      }
+    },
+    [makeAuthenticatedRequest],
   )
 
   return {
     makeAuthenticatedRequest,
     getAllActivities,
+    getUserRegistrations,
     getUserEnrollments,
+    getMyPoints,
     handleEnroll,
     handleUnenroll,
+    handleCheckIn,
     enrollingActivityIds,
     unenrollingActivityIds,
+    checkingInRegistrationIds,
     enrollmentError,
     setEnrollmentError,
   }
-
 }
-

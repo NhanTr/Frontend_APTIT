@@ -1,6 +1,6 @@
 export async function GET(req, { params }) {
   try {
-    const { id } = params
+    const { id } = await params
     const authHeader = req.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '')
 
@@ -29,7 +29,7 @@ export async function GET(req, { params }) {
 
 export async function PUT(req, { params }) {
   try {
-    const { id } = params
+    const { id } = await params
     const authHeader = req.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '')
 
@@ -63,7 +63,7 @@ export async function PUT(req, { params }) {
 
 export async function DELETE(req, { params }) {
   try {
-    const { id } = params
+    const { id } = await params
     const authHeader = req.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '')
 

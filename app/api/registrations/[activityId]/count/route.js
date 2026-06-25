@@ -1,6 +1,6 @@
 export async function GET(req, { params }) {
   try {
-    const { activityId } = params
+    const { activityId } = await params
     const authHeader = req.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '')
 

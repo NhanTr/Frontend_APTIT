@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { Suspense, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { RoleProvider } from "@/lib/role-context"
@@ -77,10 +77,21 @@ function GuestPageContent() {
 
 export default function GuestPage() {
   return (
-    <AuthProvider>
-      <RoleProvider>
-        <GuestPageContent />
-      </RoleProvider>
-    </AuthProvider>
+    <Suspense
+      fallback={
+        <div className="flex h-screen items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin inline-block w-8 h-8 border-b-2 border-primary rounded-full"></div>
+            <p className="mt-4 text-muted-foreground">Đang tải...</p>
+          </div>
+        </div>
+      }
+    >
+      <AuthProvider>
+        <RoleProvider>
+          <GuestPageContent />
+        </RoleProvider>
+      </AuthProvider>
+    </Suspense>
   )
 }
