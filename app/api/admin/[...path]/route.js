@@ -11,7 +11,8 @@ async function proxyAdminRequest(req, { params }) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const path = Array.isArray(params?.path) ? params.path.join('/') : ''
+    const resolvedParams = await params
+    const path = Array.isArray(resolvedParams?.path) ? resolvedParams.path.join('/') : ''
     const incomingUrl = new URL(req.url)
     const backendUrl = new URL(`${getBackendUrl()}/api/admin/${path}`)
     incomingUrl.searchParams.forEach((value, key) => backendUrl.searchParams.append(key, value))

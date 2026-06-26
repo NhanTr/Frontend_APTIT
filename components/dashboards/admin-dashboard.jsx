@@ -82,6 +82,10 @@ function getStatusClass(status = "") {
   return "bg-muted text-muted-foreground border-border"
 }
 
+function getRoleLabel(role) {
+  return role?.displayNameVi || role?.roleDisplayName || role?.roleName || role?.name || "-"
+}
+
 function SectionHeader({ title, description, action }) {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -198,262 +202,20 @@ function ErrorBanner({ message }) {
 }
 
 function AdminOverview() {
-  const api = useAdminApi()
-  const overview = useAdminResource(async () => unwrapApi(await api.request("/api/admin/statistics")), [])
-
-  const stats = overview.data || {}
   return (
     <div className="flex flex-col gap-4">
       <SectionHeader
         title="Admin Dashboard"
-        description="Tổng quan vận hành hệ thống quản lý hoạt động sinh viên."
-        action={
-          <Button variant="outline" size="sm" onClick={overview.refresh} disabled={overview.loading}>
-            <RefreshCw className="mr-2 size-4" /> Làm mới
-          </Button>
-        }
+        description="Quan ly tai khoan, phan quyen, thong bao va cau hinh he thong."
       />
-      <ErrorBanner message={overview.error} />
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <AdminStatCard title="Người dùng" value={stats.totalUsers ?? "-"} description="Tài khoản toàn hệ thống" icon={Users} />
-        <AdminStatCard title="Hoạt động" value={stats.totalActivities ?? "-"} description="Tổng số hoạt động" icon={Activity} />
-        <AdminStatCard title="Đăng ký" value={stats.totalRegistrations ?? "-"} description="Lượt đăng ký tham gia" icon={FileText} />
-        <AdminStatCard title="Điểm đã cấp" value={stats.totalPoints ?? "-"} description="Điểm hoạt động sinh viên" icon={FileBarChart} />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <AdminStatCard title="Nguoi dung" value="Quan ly" description="Tao tai khoan, khoa tai khoan va gan vai tro" icon={Users} />
+        <AdminStatCard title="Thong bao" value="Gui tin" description="Phat thong bao den cac nhom nguoi dung" icon={Bell} />
+        <AdminStatCard title="He thong" value="Cau hinh" description="Cau hinh, sao luu va xem nhat ky he thong" icon={Settings} />
       </div>
-      {overview.loading && <div className="text-sm text-muted-foreground">Đang tải thống kê...</div>}
     </div>
   )
-}
 
-function ActivityApprovalsPanel() {
-  const api = useAdminApi()
-  const [filters, setFilters] = useState(emptyActivityFilters)
-  const [rejecting, setRejecting] = useState(null)
-  const [rejectReason, setRejectReason] = useState("")
-  const [conflictReview, setConflictReview] = useState(null)
-  const [conflicts, setConflicts] = useState([])
-  const [conflictLoading, setConflictLoading] = useState(false)
-  const [assigning, setAssigning] = useState(null)
-  const [reviewerId, setReviewerId] = useState("")
-  const [busyId, setBusyId] = useState(null)
-
-  const activities = useAdminResource(async () => {
-    const params = new URLSearchParams({ page: "0", size: "50" })
-    if (filters.statuses) params.append("statuses", filters.statuses)
-    if (filters.keyword) params.append("keyword", filters.keyword)
-    if (filters.location) params.append("location", filters.location)
-    if (filters.fromTime) params.append("fromTime", normalizeDateTime(filters.fromTime))
-    if (filters.toTime) params.append("toTime", normalizeDateTime(filters.toTime))
-    return unwrapApi(await api.request(`/api/admin/activities?${params.toString()}`))
-  }, [filters])
-
-  const rows = getPageItems(activities.data)
-
-  async function openConflictReview(activity) {
-    setConflictReview(activity)
-    setConflictLoading(true)
-    try {
-      const response = unwrapApi(await api.request(`/api/admin/activities/${activity.id}/schedule-conflicts`))
-      setConflicts(Array.isArray(response) ? response : [])
-    } finally {
-      setConflictLoading(false)
-    }
-  }
-
-  async function assignReviewer(activity) {
-    if (!reviewerId) return
-    setAssigning(activity.id)
-    try {
-      await api.request(`/api/admin/activities/${activity.id}/assign`, {
-        method: "PUT",
-        body: JSON.stringify({ reviewerId }),
-      })
-      setReviewerId("")
-      activities.refresh()
-    } finally {
-      setAssigning(null)
-    }
-  }
-
-  async function approve(id) {
-    setBusyId(id)
-    try {
-      await api.request(`/api/admin/activities/${id}/approve`, { method: "PUT" })
-      setConflictReview(null)
-      setConflicts([])
-      activities.refresh()
-    } finally {
-      setBusyId(null)
-    }
-  }
-
-  async function reject() {
-    if (!rejecting) return
-    setBusyId(rejecting.id)
-    try {
-      await api.request(`/api/admin/activities/${rejecting.id}/reject`, {
-        method: "PUT",
-        body: JSON.stringify({ rejectReason: rejectReason || "Không đạt yêu cầu phê duyệt" }),
-      })
-      setRejecting(null)
-      setRejectReason("")
-      activities.refresh()
-    } finally {
-      setBusyId(null)
-    }
-  }
-
-  async function approveCancel(id) {
-    setBusyId(id)
-    try {
-      await api.request(`/api/admin/activities/${id}/approve-cancel`, { method: "PUT" })
-      activities.refresh()
-    } finally {
-      setBusyId(null)
-    }
-  }
-
-  return (
-    <div className="flex flex-col gap-4">
-      <SectionHeader title="Duyệt hoạt động" description="Lọc, kiểm tra và phê duyệt vòng đời hoạt động." />
-      <Card>
-        <CardContent className="grid gap-3 p-4 md:grid-cols-5">
-          <div className="md:col-span-5 flex flex-col gap-2 rounded-lg border bg-muted/30 p-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-sm font-medium">Phân công người duyệt</p>
-              <p className="text-xs text-muted-foreground">Chọn reviewer để xử lý hoạt động trước khi duyệt.</p>
-            </div>
-            <div className="flex gap-2">
-              <Input placeholder="Reviewer ID" value={reviewerId} onChange={(e) => setReviewerId(e.target.value)} className="w-full lg:w-72" />
-              {assigning && <Button disabled><Loader2 className="mr-2 size-4 animate-spin" /> Đang phân công</Button>}
-            </div>
-          </div>
-          <Select value={filters.statuses} onValueChange={(value) => setFilters((prev) => ({ ...prev, statuses: value }))}>
-            <SelectTrigger className="w-full"><SelectValue placeholder="Trạng thái" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Pending">Chờ duyệt</SelectItem>
-              <SelectItem value="Approved">Đã duyệt</SelectItem>
-              <SelectItem value="Rejected">Bị từ chối</SelectItem>
-              <SelectItem value="Cancelled">Đã hủy</SelectItem>
-              <SelectItem value="Ongoing">Đang diễn ra</SelectItem>
-              <SelectItem value="Closed">Đã đóng</SelectItem>
-            </SelectContent>
-          </Select>
-          <Input placeholder="Từ khóa" value={filters.keyword} onChange={(e) => setFilters((prev) => ({ ...prev, keyword: e.target.value }))} />
-          <Input placeholder="Địa điểm" value={filters.location} onChange={(e) => setFilters((prev) => ({ ...prev, location: e.target.value }))} />
-          <Input type="datetime-local" value={filters.fromTime} onChange={(e) => setFilters((prev) => ({ ...prev, fromTime: e.target.value }))} />
-          <Button variant="outline" onClick={() => setFilters(emptyActivityFilters)}>Xóa lọc</Button>
-        </CardContent>
-      </Card>
-      <ErrorBanner message={activities.error} />
-      <Card>
-        <CardHeader>
-          <CardTitle>Danh sách hoạt động</CardTitle>
-          <CardDescription>Duyệt/từ chối đề xuất, duyệt yêu cầu hủy và theo dõi trạng thái.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {activities.loading ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Đang tải...</div>
-          ) : rows.length === 0 ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">Không có hoạt động phù hợp.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Hoạt động</TableHead>
-                    <TableHead>Thời gian</TableHead>
-                    <TableHead>Địa điểm</TableHead>
-                    <TableHead>Điểm</TableHead>
-                    <TableHead>Trạng thái</TableHead>
-                    <TableHead className="text-right">Thao tác</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((activity) => (
-                    <TableRow key={activity.id}>
-                      <TableCell>
-                        <div className="font-medium">{activity.title}</div>
-                        <div className="text-xs text-muted-foreground">BTC: {activity.organizerId || "-"}</div>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{formatDateTime(activity.startTime)}</TableCell>
-                      <TableCell>{activity.location || "-"}</TableCell>
-                      <TableCell>{activity.trainingPoints ?? "-"}</TableCell>
-                      <TableCell><Badge variant="outline" className={getStatusClass(activity.status)}>{activity.status || "-"}</Badge></TableCell>
-                      <TableCell>
-                        <div className="flex justify-end gap-2">
-                          <Button size="sm" variant="outline" disabled={busyId === activity.id} onClick={() => openConflictReview(activity)}>
-                            <Check className="mr-1 size-4" /> Kiểm tra & duyệt
-                          </Button>
-                          <Button size="sm" variant="outline" disabled={busyId === activity.id} onClick={() => setRejecting(activity)}>
-                            <X className="mr-1 size-4" /> Từ chối
-                          </Button>
-                          {String(activity.status).toLowerCase().includes("review") && activity.cancelReason && (
-                            <Button size="sm" disabled={busyId === activity.id} onClick={() => approveCancel(activity.id)}>Duyệt hủy</Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      <Dialog open={!!conflictReview} onOpenChange={(open) => !open && setConflictReview(null)}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Kiểm tra trùng lịch trước khi duyệt</DialogTitle>
-            <DialogDescription>{conflictReview?.title}</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-3">
-            <div className="rounded-lg border p-3">
-              <div className="text-sm font-medium">Thông tin phân công</div>
-              <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
-                <Input placeholder="Reviewer ID" value={reviewerId} onChange={(e) => setReviewerId(e.target.value)} />
-                <Button variant="outline" onClick={() => assignReviewer(conflictReview)} disabled={!reviewerId || assigning === conflictReview?.id || conflictLoading}>
-                  <Users className="mr-2 size-4" /> Phân công
-                </Button>
-              </div>
-            </div>
-            {conflictLoading ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Đang kiểm tra lịch...</div>
-            ) : conflicts.length === 0 ? (
-              <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-emerald-600">Không phát hiện trùng phòng hoặc trùng khung giờ với hoạt động đã duyệt/đang diễn ra.</div>
-            ) : (
-              <div className="grid gap-3">
-                <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-3 text-sm text-amber-700">Có {conflicts.length} xung đột lịch. Vui lòng kiểm tra kỹ trước khi tiếp tục duyệt.</div>
-                <div className="overflow-x-auto rounded-lg border">
-                  <Table>
-                    <TableHeader><TableRow><TableHead>Hoạt động</TableHead><TableHead>Địa điểm</TableHead><TableHead>Bắt đầu</TableHead><TableHead>Kết thúc</TableHead></TableRow></TableHeader>
-                    <TableBody>{conflicts.map((item) => <TableRow key={item.activityId}><TableCell>{item.title}</TableCell><TableCell>{item.location}</TableCell><TableCell>{formatDateTime(item.startTime)}</TableCell><TableCell>{formatDateTime(item.endTime)}</TableCell></TableRow>)}</TableBody>
-                  </Table>
-                </div>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConflictReview(null)}>Đóng</Button>
-            <Button onClick={() => approve(conflictReview.id)} disabled={busyId === conflictReview?.id || conflictLoading}>Vẫn duyệt hoạt động</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={!!rejecting} onOpenChange={(open) => !open && setRejecting(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Từ chối hoạt động</DialogTitle>
-            <DialogDescription>Nhập lý do để BTC/CLB có thể chỉnh sửa và gửi lại.</DialogDescription>
-          </DialogHeader>
-          <Textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="Lý do từ chối" />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRejecting(null)}>Hủy</Button>
-            <Button variant="destructive" onClick={reject} disabled={busyId === rejecting?.id}>Xác nhận từ chối</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  )
 }
 
 function UsersPanel() {
@@ -483,16 +245,6 @@ function UsersPanel() {
     users.refresh()
   }
 
-  async function assignRole(userId, roleId) {
-    setBusyId(userId)
-    try {
-      await api.request(`/api/admin/users/${userId}/role`, { method: "PUT", body: JSON.stringify({ roleId: Number(roleId) }) })
-      users.refresh()
-    } finally {
-      setBusyId(null)
-    }
-  }
-
   async function deactivateUser(userId) {
     setBusyId(userId)
     try {
@@ -504,6 +256,12 @@ function UsersPanel() {
   }
 
   const rows = Array.isArray(users.data) ? users.data : []
+  const canCreateUser =
+    form.username.trim() &&
+    form.email.trim() &&
+    form.password.trim() &&
+    form.fullName.trim() &&
+    form.roleId
 
   return (
     <div className="flex flex-col gap-4">
@@ -520,7 +278,7 @@ function UsersPanel() {
           </div>
           <Select value={roleFilter} onValueChange={setRoleFilter}>
             <SelectTrigger className="w-full"><SelectValue placeholder="Vai trò" /></SelectTrigger>
-            <SelectContent>{roleOptions.map((role) => <SelectItem key={role.id} value={String(role.id)}>{role.name}</SelectItem>)}</SelectContent>
+            <SelectContent>{roleOptions.map((role) => <SelectItem key={role.id} value={String(role.id)}>{getRoleLabel(role)}</SelectItem>)}</SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-full"><SelectValue placeholder="Trạng thái" /></SelectTrigger>
@@ -540,10 +298,9 @@ function UsersPanel() {
                     <TableCell><div className="font-medium">{user.username}</div><div className="text-xs text-muted-foreground">{user.id}</div></TableCell>
                     <TableCell>{user.email || "-"}</TableCell>
                     <TableCell>
-                      <Select value={String(user.roleId || "")} onValueChange={(value) => assignRole(user.id, value)} disabled={busyId === user.id}>
-                        <SelectTrigger className="w-40"><SelectValue placeholder={user.roleName || "Chọn role"} /></SelectTrigger>
-                        <SelectContent>{roleOptions.map((role) => <SelectItem key={role.id} value={String(role.id)}>{role.name}</SelectItem>)}</SelectContent>
-                      </Select>
+                      <Badge variant="outline" className="bg-muted text-muted-foreground border-border">
+                        {user.roleDisplayName || user.roleName || user.roleId || "-"}
+                      </Badge>
                     </TableCell>
                     <TableCell><Badge variant="outline" className={getStatusClass(user.status)}>{user.status || "-"}</Badge></TableCell>
                     <TableCell className="text-right"><Button size="sm" variant="outline" disabled={busyId === user.id} onClick={() => deactivateUser(user.id)}>Khóa</Button></TableCell>
@@ -557,19 +314,46 @@ function UsersPanel() {
       </Card>
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Tạo người dùng</DialogTitle><DialogDescription>Tạo tài khoản mới và gán vai trò chính.</DialogDescription></DialogHeader>
-          <div className="grid gap-3">
-            <Label>Username</Label><Input value={form.username} onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))} />
-            <Label>Email</Label><Input value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
-            <Label>Mật khẩu</Label><Input type="password" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} />
-            <Label>Họ tên</Label><Input value={form.fullName} onChange={(e) => setForm((p) => ({ ...p, fullName: e.target.value }))} />
-            <Label>Vai trò</Label>
-            <Select value={form.roleId} onValueChange={(value) => setForm((p) => ({ ...p, roleId: value }))}>
-              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-              <SelectContent>{roleOptions.map((role) => <SelectItem key={role.id} value={String(role.id)}>{role.name}</SelectItem>)}</SelectContent>
-            </Select>
+          <DialogHeader>
+            <DialogTitle>Tao nguoi dung</DialogTitle>
+            <DialogDescription>Tao tai khoan moi voi mat khau ban dau va vai tro co dinh.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="new-user-username">Username</Label>
+              <Input id="new-user-username" value={form.username} onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))} />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="new-user-email">Email</Label>
+              <Input id="new-user-email" type="email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="new-user-password">Mat khau</Label>
+              <Input
+                id="new-user-password"
+                type="password"
+                autoComplete="new-password"
+                placeholder="Nhap mat khau ban dau"
+                value={form.password}
+                onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="new-user-full-name">Ho ten</Label>
+              <Input id="new-user-full-name" value={form.fullName} onChange={(e) => setForm((p) => ({ ...p, fullName: e.target.value }))} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Vai tro</Label>
+              <Select value={form.roleId} onValueChange={(value) => setForm((p) => ({ ...p, roleId: value }))}>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Chon vai tro" /></SelectTrigger>
+                <SelectContent>{roleOptions.map((role) => <SelectItem key={role.id} value={String(role.id)}>{getRoleLabel(role)}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setFormOpen(false)}>Hủy</Button><Button onClick={createUser}>Tạo</Button></DialogFooter>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFormOpen(false)}>Huy</Button>
+            <Button onClick={createUser} disabled={!canCreateUser}>Tao</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
@@ -599,119 +383,11 @@ function AnnouncementsPanel() {
         <div className="grid gap-2"><Label>Nội dung</Label><Textarea value={form.content} onChange={(e) => setForm((p) => ({ ...p, content: e.target.value }))} /></div>
         <div className="grid gap-2 md:grid-cols-2">
           <div className="grid gap-2"><Label>Loại</Label><Input value={form.type} onChange={(e) => setForm((p) => ({ ...p, type: e.target.value }))} /></div>
-          <div className="grid gap-2"><Label>Vai trò nhận</Label><Select value={form.roleId} onValueChange={(value) => setForm((p) => ({ ...p, roleId: value }))}><SelectTrigger className="w-full"><SelectValue placeholder="Tất cả" /></SelectTrigger><SelectContent>{(roles.data || []).map((role) => <SelectItem key={role.id} value={String(role.id)}>{role.name}</SelectItem>)}</SelectContent></Select></div>
+          <div className="grid gap-2"><Label>Vai trò nhận</Label><Select value={form.roleId} onValueChange={(value) => setForm((p) => ({ ...p, roleId: value }))}><SelectTrigger className="w-full"><SelectValue placeholder="Tất cả" /></SelectTrigger><SelectContent>{(roles.data || []).map((role) => <SelectItem key={role.id} value={String(role.id)}>{getRoleLabel(role)}</SelectItem>)}</SelectContent></Select></div>
         </div>
         <Button className="w-fit" onClick={send}><Bell className="mr-2 size-4" /> Gửi thông báo</Button>
       </CardContent>
     </Card>
-  )
-}
-
-function ReportsPanel() {
-  const api = useAdminApi()
-  const [status, setStatus] = useState("Pending")
-  const [rejecting, setRejecting] = useState(null)
-  const [reason, setReason] = useState("")
-  const [busyId, setBusyId] = useState(null)
-  const reports = useAdminResource(async () => {
-    const params = new URLSearchParams()
-    if (status) params.append("reportStatus", status)
-    return unwrapApi(await api.request(`/api/admin/reports?${params.toString()}`))
-  }, [status])
-
-  const rows = Array.isArray(reports.data) ? reports.data : []
-
-  async function approveReport(reportId) {
-    setBusyId(reportId)
-    try {
-      await api.request(`/api/admin/reports/${reportId}/approve`, { method: "PATCH" })
-      reports.refresh()
-    } finally {
-      setBusyId(null)
-    }
-  }
-
-  async function rejectReport() {
-    if (!rejecting) return
-    setBusyId(rejecting.id)
-    try {
-      await api.request(`/api/admin/reports/${rejecting.id}/reject`, {
-        method: "PATCH",
-        body: JSON.stringify({ rejectReason: reason || "Báo cáo chưa đạt yêu cầu" }),
-      })
-      setRejecting(null)
-      setReason("")
-      reports.refresh()
-    } finally {
-      setBusyId(null)
-    }
-  }
-
-  return (
-    <div className="grid gap-4">
-      <SectionHeader title="Duyệt báo cáo sau hoạt động" description="Xem, duyệt hoặc từ chối báo cáo sau khi hoạt động kết thúc." />
-      <Card>
-        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="w-full sm:w-56"><SelectValue placeholder="Trạng thái báo cáo" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Pending">Chờ duyệt</SelectItem>
-              <SelectItem value="Approved">Đã duyệt</SelectItem>
-              <SelectItem value="Rejected">Bị từ chối</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" onClick={reports.refresh}><RefreshCw className="mr-2 size-4" /> Làm mới</Button>
-        </CardContent>
-      </Card>
-      <ErrorBanner message={reports.error} />
-      <Card>
-        <CardContent className="p-0">
-          {reports.loading ? <div className="p-4 text-sm text-muted-foreground">Đang tải...</div> : rows.length === 0 ? <div className="p-8 text-center text-sm text-muted-foreground">Không có báo cáo phù hợp.</div> : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader><TableRow><TableHead>Báo cáo</TableHead><TableHead>Hoạt động</TableHead><TableHead>Người nộp</TableHead><TableHead>Trạng thái</TableHead><TableHead>Ngày nộp</TableHead><TableHead className="text-right">Thao tác</TableHead></TableRow></TableHeader>
-                <TableBody>{rows.map((report) => <TableRow key={report.id}><TableCell><div className="font-medium">{report.originalFileName || report.fileUrl || report.id}</div><div className="text-xs text-muted-foreground">{report.contentType || report.fileType}</div></TableCell><TableCell>{report.activityId}</TableCell><TableCell>{report.uploadedBy || "-"}</TableCell><TableCell><Badge variant="outline" className={getStatusClass(report.reportStatus)}>{report.reportStatus || "-"}</Badge></TableCell><TableCell>{formatDateTime(report.uploadedAt)}</TableCell><TableCell><div className="flex justify-end gap-2"><Button size="sm" variant="outline" asChild disabled={!report.fileUrl}><a href={report.fileUrl || "#"} target="_blank" rel="noreferrer">Mở file</a></Button><Button size="sm" disabled={busyId === report.id} onClick={() => approveReport(report.id)}>Duyệt</Button><Button size="sm" variant="outline" disabled={busyId === report.id} onClick={() => setRejecting(report)}>Từ chối</Button></div></TableCell></TableRow>)}</TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      <Dialog open={!!rejecting} onOpenChange={(open) => !open && setRejecting(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Từ chối báo cáo</DialogTitle><DialogDescription>Nhập lý do để BTC/CLB nộp lại báo cáo.</DialogDescription></DialogHeader>
-          <Textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Lý do từ chối" />
-          <DialogFooter><Button variant="outline" onClick={() => setRejecting(null)}>Hủy</Button><Button variant="destructive" onClick={rejectReport}>Từ chối báo cáo</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  )
-}
-
-function StatisticsPanel() {
-  const api = useAdminApi()
-  const activityStats = useAdminResource(async () => unwrapApi(await api.request("/api/admin/statistics/activities")), [])
-  const studentStats = useAdminResource(async () => unwrapApi(await api.request("/api/admin/statistics/students")), [])
-  const activityRows = activityStats.data?.activities || []
-  const studentRows = studentStats.data?.students || []
-
-  return (
-    <div className="grid gap-4">
-      <SectionHeader title="Thống kê và báo cáo" description="Báo cáo hoạt động và điểm hoạt động sinh viên theo yêu cầu QLHĐ_BM 2, QLHĐ_BM 3." />
-      <div className="grid gap-4 md:grid-cols-4">
-        <AdminStatCard title="Tổng hoạt động" value={activityStats.data?.totalActivities ?? "-"} description="Trong kỳ lọc" icon={Activity} />
-        <AdminStatCard title="Chờ duyệt" value={activityStats.data?.pendingCount ?? "-"} description="Pending" icon={FileText} />
-        <AdminStatCard title="Đã duyệt" value={activityStats.data?.approvedCount ?? "-"} description="Approved" icon={Check} />
-        <AdminStatCard title="Sinh viên có điểm" value={studentRows.length} description="Theo bộ lọc hiện tại" icon={Users} />
-      </div>
-      <Card>
-        <CardHeader><CardTitle>Báo cáo thống kê hoạt động</CardTitle><CardDescription>Danh sách hoạt động, số sinh viên đăng ký/tham gia và trạng thái.</CardDescription></CardHeader>
-        <CardContent><ErrorBanner message={activityStats.error} />{activityStats.loading ? <div className="text-sm text-muted-foreground">Đang tải...</div> : <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Tên hoạt động</TableHead><TableHead>Ban tổ chức</TableHead><TableHead>SV đăng ký</TableHead><TableHead>SV tham gia</TableHead><TableHead>Trạng thái</TableHead></TableRow></TableHeader><TableBody>{activityRows.map((item) => <TableRow key={item.activityId}><TableCell>{item.title}</TableCell><TableCell>{item.organizerName || "-"}</TableCell><TableCell>{item.registeredStudentCount ?? 0}</TableCell><TableCell>{item.attendedStudentCount ?? 0}</TableCell><TableCell><Badge variant="outline" className={getStatusClass(item.status)}>{item.status}</Badge></TableCell></TableRow>)}</TableBody></Table>{activityRows.length === 0 && <div className="py-6 text-center text-sm text-muted-foreground">Không có dữ liệu.</div>}</div>}</CardContent>
-      </Card>
-      <Card>
-        <CardHeader><CardTitle>Báo cáo điểm hoạt động sinh viên</CardTitle><CardDescription>Mã sinh viên, lớp/khoa, số hoạt động và tổng điểm.</CardDescription></CardHeader>
-        <CardContent><ErrorBanner message={studentStats.error} />{studentStats.loading ? <div className="text-sm text-muted-foreground">Đang tải...</div> : <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Mã SV</TableHead><TableHead>Họ tên</TableHead><TableHead>Lớp</TableHead><TableHead>Khoa</TableHead><TableHead>Số hoạt động</TableHead><TableHead>Tổng điểm</TableHead></TableRow></TableHeader><TableBody>{studentRows.map((item) => <TableRow key={item.studentId}><TableCell>{item.studentCode || item.studentId}</TableCell><TableCell>{item.fullName || "-"}</TableCell><TableCell>{item.className || "-"}</TableCell><TableCell>{item.department || "-"}</TableCell><TableCell>{item.participatedActivityCount ?? 0}</TableCell><TableCell>{item.totalEarnedPoints ?? 0}</TableCell></TableRow>)}</TableBody></Table>{studentRows.length === 0 && <div className="py-6 text-center text-sm text-muted-foreground">Không có dữ liệu.</div>}</div>}</CardContent>
-      </Card>
-    </div>
   )
 }
 
@@ -789,10 +465,7 @@ export function AdminDashboard({ activeSection = "dashboard" }) {
     <div className="flex flex-col gap-4 sm:gap-6">
       {(normalizedSection === "dashboard") && <AdminOverview />}
       {(["students", "users"].includes(normalizedSection)) && <UsersPanel />}
-      {(["activity-approvals", "activities"].includes(normalizedSection)) && <ActivityApprovalsPanel />}
       {normalizedSection === "announcements" && <AnnouncementsPanel />}
-      {normalizedSection === "reports" && <ReportsPanel />}
-      {normalizedSection === "statistics" && <StatisticsPanel />}
       {normalizedSection === "settings" && <SettingsPanel />}
       {normalizedSection === "personal-profile" && <PersonalProfilePanel />}
     </div>
