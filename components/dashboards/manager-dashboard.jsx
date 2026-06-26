@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useState } from "react"
 import {
   AlertCircle,
+  Ban,
   Bell,
   CalendarDays,
   Check,
+  Eye,
   FileText,
   Loader2,
   MapPin,
@@ -28,7 +30,8 @@ import { Textarea } from "@/components/ui/textarea"
 const statusMeta = {
   draft: { label: "Draft", className: "bg-muted text-muted-foreground border-border" },
   pending: { label: "Pending", className: "bg-warning/10 text-warning border-warning/20" },
-  reviewing: { label: "Cancel review", className: "bg-primary/10 text-primary border-primary/20" },
+  reviewing: { label: "Đang duyệt", className: "bg-primary/10 text-primary border-primary/20" },
+  cancellationrequested: { label: "Cancel requested", className: "bg-warning/10 text-warning border-warning/20" },
   approved: { label: "Approved", className: "bg-success/10 text-success border-success/20" },
   ongoing: { label: "Ongoing", className: "bg-success/10 text-success border-success/20" },
   closed: { label: "Closed", className: "bg-secondary text-secondary-foreground border-border" },
@@ -43,7 +46,7 @@ const reportMeta = {
   cancelled: { label: "Cancelled", className: "bg-muted text-muted-foreground border-border" },
 }
 
-const statusOptions = ["Draft", "Pending", "Reviewing", "Approved", "Ongoing", "Closed", "Rejected", "Cancelled"]
+const statusOptions = ["Draft", "Pending", "Reviewing", "CancellationRequested", "Approved", "Ongoing", "Closed", "Rejected", "Cancelled"]
 const reportStatusOptions = ["Pending", "Approved", "Rejected", "Cancelled"]
 
 function getStatusKey(value) {
@@ -173,17 +176,10 @@ function ConflictList({ conflicts }) {
   )
 }
 
-function ActivityRow({ activity, data }) {
+function ActivityRow({ activity, data, onViewDetails }) {
   const statusKey = getStatusKey(activity.status)
-  const isPending = statusKey === "pending"
-  const isReviewing = statusKey === "reviewing"
+  const isCancellationRequested = statusKey === "cancellationrequested"
   const conflicts = data.conflictsByActivity[activity.id]
-
-  const rejectActivity = async () => {
-    const reason = window.prompt("Reason for rejection")
-    if (!reason?.trim()) return
-    await data.rejectActivity(activity.id, reason.trim())
-  }
 
   const rejectCancel = async () => {
     const reason = window.prompt("Reason for rejecting cancellation")
@@ -204,29 +200,15 @@ function ActivityRow({ activity, data }) {
             <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{activity.description || "No description"}</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => onViewDetails(activity)} disabled={data.actionLoading}>
+              <Eye className="mr-1 size-4" />
+              Xem chi tiết
+            </Button>
             <Button size="sm" variant="outline" onClick={() => data.loadScheduleConflicts(activity.id)} disabled={data.actionLoading}>
               <AlertCircle className="mr-1 size-4" />
               Check schedule
             </Button>
-            {isPending && (
-              <>
-                <Button size="sm" onClick={() => data.approveActivity(activity.id)} disabled={data.actionLoading}>
-                  <Check className="mr-1 size-4" />
-                  Approve
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="border-destructive text-destructive hover:bg-destructive/10"
-                  onClick={rejectActivity}
-                  disabled={data.actionLoading}
-                >
-                  <X className="mr-1 size-4" />
-                  Reject
-                </Button>
-              </>
-            )}
-            {isReviewing && (
+            {isCancellationRequested && (
               <>
                 <Button size="sm" onClick={() => data.approveCancelRequest(activity.id)} disabled={data.actionLoading}>
                   <Check className="mr-1 size-4" />
@@ -284,16 +266,158 @@ function ActivityRow({ activity, data }) {
   )
 }
 
+function ActivityDetailPanel({ activity, data, onClose }) {
+  if (!activity) return null
+
+  const statusKey = getStatusKey(activity.status)
+  const canReviewDecision = statusKey === "reviewing"
+  const canCancelApproved = statusKey === "approved" || statusKey === "ongoing"
+
+  const rejectActivity = async () => {
+    const reason = window.prompt("Reason for rejection")
+    if (!reason?.trim()) return
+    await data.rejectActivity(activity.id, reason.trim())
+    onClose()
+  }
+
+  const approveActivity = async () => {
+    await data.approveActivity(activity.id)
+    onClose()
+  }
+
+  const cancelApprovedActivity = async () => {
+    const reason = window.prompt("Reason for cancellation")
+    if (!reason?.trim()) return
+    await data.cancelApprovedActivity(activity.id, reason.trim())
+    onClose()
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <CardTitle>{activity.title || "Untitled activity"}</CardTitle>
+          <CardDescription>
+            {activity.id} · {activity.organizerName}
+          </CardDescription>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {statusBadge(activity.status)}
+          <Button variant="outline" size="sm" onClick={onClose}>
+            Close
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <div className="grid gap-3 text-sm md:grid-cols-2">
+          <div>
+            <p className="text-muted-foreground">Location</p>
+            <p className="font-medium text-card-foreground">{activity.location || "No location"}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Schedule</p>
+            <p className="font-medium text-card-foreground">
+              {formatDateTime(activity.startTime)} - {formatDateTime(activity.endTime)}
+            </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Registration deadline</p>
+            <p className="font-medium text-card-foreground">{formatDateTime(activity.registrationDeadline)}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Capacity</p>
+            <p className="font-medium text-card-foreground">
+              {activity.enrolled}/{activity.capacity || 0}
+            </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Training points</p>
+            <p className="font-medium text-card-foreground">{activity.trainingPoints ?? "Not set"}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Sponsor</p>
+            <p className="font-medium text-card-foreground">{activity.sponsor || "Not set"}</p>
+          </div>
+        </div>
+
+        <div className="grid gap-2">
+          <p className="text-sm text-muted-foreground">Description</p>
+          <p className="rounded-md border border-border bg-background p-3 text-sm text-card-foreground">
+            {activity.description || "No description"}
+          </p>
+        </div>
+
+        <div className="grid gap-2">
+          <p className="text-sm text-muted-foreground">Purpose</p>
+          <p className="rounded-md border border-border bg-background p-3 text-sm text-card-foreground">
+            {activity.purpose || "No purpose"}
+          </p>
+        </div>
+
+        {activity.cancelReason && (
+          <p className="rounded-md border border-warning/20 bg-warning/5 px-3 py-2 text-sm text-muted-foreground">
+            Cancel reason: {activity.cancelReason}
+          </p>
+        )}
+
+        <div className="flex flex-wrap justify-end gap-2">
+          {canCancelApproved && (
+            <Button
+              variant="outline"
+              className="border-destructive text-destructive hover:bg-destructive/10"
+              onClick={cancelApprovedActivity}
+              disabled={data.actionLoading}
+            >
+              <Ban className="mr-2 size-4" />
+              Hủy hoạt động
+            </Button>
+          )}
+          {canReviewDecision && (
+            <>
+              <Button onClick={approveActivity} disabled={data.actionLoading}>
+                <Check className="mr-2 size-4" />
+                Duyệt
+              </Button>
+              <Button
+                variant="outline"
+                className="border-destructive text-destructive hover:bg-destructive/10"
+                onClick={rejectActivity}
+                disabled={data.actionLoading}
+              >
+                <X className="mr-2 size-4" />
+                Từ chối
+              </Button>
+            </>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 function ActivityApprovalTable({ data, mode = "all" }) {
+  const [selectedActivity, setSelectedActivity] = useState(null)
+
   const filteredActivities = useMemo(() => {
     if (mode === "pending") {
-      return data.activities.filter((activity) => ["pending", "reviewing"].includes(activity.statusKey))
+      return data.activities.filter((activity) => ["pending", "reviewing", "cancellationrequested"].includes(activity.statusKey))
     }
     return data.activities
   }, [data.activities, mode])
 
+  const viewDetails = async (activity) => {
+    if (activity.statusKey === "pending") {
+      const reviewingActivity = await data.startActivityReview(activity.id)
+      setSelectedActivity(reviewingActivity)
+      return
+    }
+
+    setSelectedActivity(activity)
+  }
+
   return (
     <div className="flex flex-col gap-4">
+      <ActivityDetailPanel activity={selectedActivity} data={data} onClose={() => setSelectedActivity(null)} />
       <Card>
         <CardHeader className="flex flex-col gap-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -318,7 +442,7 @@ function ActivityApprovalTable({ data, mode = "all" }) {
             <div className="py-10 text-center text-sm text-muted-foreground">No activities found.</div>
           ) : (
             filteredActivities.map((activity) => (
-              <ActivityRow key={activity.id} activity={activity} data={data} />
+              <ActivityRow key={activity.id} activity={activity} data={data} onViewDetails={viewDetails} />
             ))
           )}
         </CardContent>
@@ -524,7 +648,7 @@ function NotificationPanel({ data }) {
 
 function ManagerOverview({ data }) {
   const pendingCount = data.activities.filter((activity) => activity.statusKey === "pending").length
-  const reviewingCount = data.activities.filter((activity) => activity.statusKey === "reviewing").length
+  const reviewingCount = data.activities.filter((activity) => activity.statusKey === "cancellationrequested").length
   const pendingReports = data.reports.filter((report) => getStatusKey(report.reportStatus) === "pending").length
 
   return (

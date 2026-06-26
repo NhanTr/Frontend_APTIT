@@ -275,10 +275,37 @@ export function useManagerData() {
     [requestJson, runMutation],
   )
 
+  const startActivityReview = useCallback(
+    (activityId) =>
+      runMutation(
+        async () => {
+          const result = await requestJson(`/api/manager/activities/${activityId}/review`, {
+            method: "PATCH",
+          })
+          const transformed = transformManagerActivity(result || {})
+          setActivities((prev) => prev.map((activity) => (activity.id === activityId ? transformed : activity)))
+          return transformed
+        },
+        { refresh: false },
+      ),
+    [requestJson, runMutation],
+  )
+
   const rejectActivity = useCallback(
     (activityId, reason) =>
       runMutation(() =>
         requestJson(`/api/manager/activities/${activityId}/reject`, {
+          method: "PATCH",
+          body: JSON.stringify({ reason }),
+        }),
+      ),
+    [requestJson, runMutation],
+  )
+
+  const cancelApprovedActivity = useCallback(
+    (activityId, reason) =>
+      runMutation(() =>
+        requestJson(`/api/manager/activities/${activityId}/cancel`, {
           method: "PATCH",
           body: JSON.stringify({ reason }),
         }),
@@ -368,8 +395,10 @@ export function useManagerData() {
     refreshAll,
     searchActivities,
     searchReports,
+    startActivityReview,
     approveActivity,
     rejectActivity,
+    cancelApprovedActivity,
     approveCancelRequest,
     rejectCancelRequest,
     loadScheduleConflicts,
