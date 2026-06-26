@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   ClipboardList,
   Edit3,
+  Eye,
   FileText,
   Loader2,
   MapPin,
@@ -19,6 +20,7 @@ import {
 } from "lucide-react"
 import { useOrganizerData } from "@/hooks/use-organizer-data"
 import { PersonalProfilePanel } from "@/components/profile/personal-profile-panel"
+import { NotificationsPanel } from "@/components/notifications/notifications-panel"
 import { GuestDashboard } from "@/components/dashboards/guest-dashboard"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -51,7 +53,7 @@ const statusMeta = {
   approved: { label: "Đã duyệt", className: "bg-success/10 text-success border-success/20" },
   ongoing: { label: "Đang diễn ra", className: "bg-success/10 text-success border-success/20" },
   closed: { label: "Đã kết thúc", className: "bg-secondary text-secondary-foreground border-border" },
-  rejected: { label: "Bị từ chối", className: "bg-destructive/10 text-destructive border-destructive/20" },
+  rejected: { label: "Từ chối", className: "bg-destructive/10 text-destructive border-destructive/20" },
   cancelled: { label: "Đã hủy", className: "bg-destructive/10 text-destructive border-destructive/20" },
 }
 
@@ -65,6 +67,7 @@ const registrationMeta = {
 const emptyForm = {
   title: "",
   description: "",
+  roomId: "",
   location: "",
   startTime: "",
   endTime: "",
@@ -120,11 +123,25 @@ function registrationBadge(status) {
   )
 }
 
+function getStudentName(registration) {
+  return registration.studentName || registration.studentCode || registration.studentId
+}
+
+function attendanceBadge(registration) {
+  if (registration.isPresent === true) {
+    return <Badge variant="outline" className="bg-success/10 text-success border-success/20">Có mặt</Badge>
+  }
+  if (registration.isPresent === false) {
+    return <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">Vắng</Badge>
+  }
+  return <Badge variant="outline" className="bg-muted text-muted-foreground border-border">Chưa điểm danh</Badge>
+}
+
 function buildPayload(form) {
   const payload = {
     title: form.title.trim(),
     description: form.description.trim(),
-    location: form.location.trim(),
+    roomId: form.roomId || "",
     startTime: form.startTime,
     endTime: form.endTime,
     registrationDeadline: form.registrationDeadline || null,
@@ -144,8 +161,9 @@ function buildFormFromActivity(activity) {
   if (!activity) return emptyForm
   return {
     title: activity.title || "",
-    description: activity.description || "",
-    location: activity.location || "",
+    description: activity.description || "Chưa có mô tả",
+    roomId: activity.roomId || "",
+    location: activity.location || "Chưa có địa điểm",
     startTime: toDateTimeLocal(activity.startTime),
     endTime: toDateTimeLocal(activity.endTime),
     registrationDeadline: toDateTimeLocal(activity.registrationDeadline),
@@ -158,8 +176,10 @@ function buildFormFromActivity(activity) {
   }
 }
 
-function ActivityForm({ initialActivity, actionLoading, onSubmit, onCancel }) {
+function ActivityForm({ initialActivity, actionLoading, rooms = [], onCheckScheduleConflicts, onSubmit, onCancel }) {
   const [form, setForm] = useState(() => buildFormFromActivity(initialActivity))
+  const [scheduleConflicts, setScheduleConflicts] = useState([])
+  const [checkingSchedule, setCheckingSchedule] = useState(false)
   const isEditing = !!initialActivity
 
   useEffect(() => {
@@ -171,11 +191,55 @@ function ActivityForm({ initialActivity, actionLoading, onSubmit, onCancel }) {
     setForm((prev) => ({ ...prev, [name]: value }))
   }
 
+  const roomsByFloor = useMemo(() => {
+    return rooms.reduce((groups, room) => {
+      const key = `Tang ${room.floor}`
+      groups[key] = [...(groups[key] || []), room]
+      return groups
+    }, {})
+  }, [rooms])
+
+  useEffect(() => {
+    if (!onCheckScheduleConflicts || !form.roomId || !form.startTime || !form.endTime) {
+      setScheduleConflicts([])
+      setCheckingSchedule(false)
+      return
+    }
+
+    let cancelled = false
+    const timeoutId = window.setTimeout(async () => {
+      setCheckingSchedule(true)
+      try {
+        const conflicts = await onCheckScheduleConflicts({
+          roomId: form.roomId,
+          startTime: form.startTime,
+          endTime: form.endTime,
+        })
+        if (!cancelled) {
+          setScheduleConflicts(conflicts)
+        }
+      } catch {
+        if (!cancelled) {
+          setScheduleConflicts([])
+        }
+      } finally {
+        if (!cancelled) {
+          setCheckingSchedule(false)
+        }
+      }
+    }, 350)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timeoutId)
+    }
+  }, [form.endTime, form.roomId, form.startTime, onCheckScheduleConflicts])
+
   const submit = async (event, submitAfterCreate = false) => {
     event.preventDefault()
 
-    if (!form.title.trim() || !form.startTime || !form.endTime) {
-      window.alert("Vui lòng nhập tiêu đề, thời gian bắt đầu và thời gian kết thúc.")
+    if (!form.title.trim() || !form.roomId || !form.startTime || !form.endTime) {
+      window.alert("Vui lòng nhập tiêu đề, phòng học, thời gian bắt đầu và thời gian kết thúc.")
       return
     }
 
@@ -215,8 +279,40 @@ function ActivityForm({ initialActivity, actionLoading, onSubmit, onCancel }) {
           />
         </div>
         <div className="flex flex-col gap-2">
-          <Label htmlFor="location">Địa điểm</Label>
-          <Input id="location" name="location" value={form.location} onChange={handleChange} />
+          <Label htmlFor="roomId">Phòng học</Label>
+          <Select
+            value={form.roomId || undefined}
+            onValueChange={(value) => setForm((prev) => ({ ...prev, roomId: value }))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Chon phong hoc" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(roomsByFloor).map(([floor, floorRooms]) => (
+                <div key={floor}>
+                  <div className="px-2 py-1 text-xs font-medium text-muted-foreground">{floor}</div>
+                  {floorRooms.map((room) => (
+                    <SelectItem key={room.id} value={room.id}>
+                      {room.code} - Toa {room.building}
+                    </SelectItem>
+                  ))}
+                </div>
+              ))}
+            </SelectContent>
+          </Select>
+          {checkingSchedule && <p className="text-xs text-muted-foreground">Dang kiem tra trung lich...</p>}
+          {!checkingSchedule && scheduleConflicts.length > 0 && (
+            <div className="rounded-md border border-warning/20 bg-warning/5 p-3 text-sm">
+              <p className="mb-2 font-medium text-card-foreground">Phong nay dang trung lich</p>
+              <div className="flex flex-col gap-1 text-muted-foreground">
+                {scheduleConflicts.map((conflict) => (
+                  <p key={`${conflict.activityId}-${conflict.startTime}`}>
+                    {conflict.title || conflict.activityId}: {formatDateTime(conflict.startTime)} - {formatDateTime(conflict.endTime)}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="maxParticipants">Số lượng tối đa</Label>
@@ -260,9 +356,7 @@ function ActivityForm({ initialActivity, actionLoading, onSubmit, onCancel }) {
 
       <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
         {onCancel && (
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Hủy
-          </Button>
+          <Button type="button" variant="outline" onClick={onCancel}>Hủy</Button>
         )}
         <Button type="submit" disabled={actionLoading}>
           {actionLoading ? <Loader2 className="mr-2 size-4 animate-spin" /> : <CheckCircle2 className="mr-2 size-4" />}
@@ -270,9 +364,7 @@ function ActivityForm({ initialActivity, actionLoading, onSubmit, onCancel }) {
         </Button>
         {!isEditing && (
           <Button type="button" variant="secondary" disabled={actionLoading} onClick={(event) => submit(event, true)}>
-            <Send className="mr-2 size-4" />
-            Tạo và gửi duyệt
-          </Button>
+            <Send className="mr-2 size-4" />Tạo và gửi duyệt</Button>
         )}
       </div>
     </form>
@@ -311,7 +403,144 @@ function StatisticsCards({ activities, statistics }) {
   )
 }
 
-function ActivityCard({ activity, actionLoading, onEdit, onSubmit, onDelete, onCancelRequest }) {
+function ActivityDetailDialog({ activity, open, onOpenChange }) {
+  if (!activity) return null
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Sửa hoạt động</DialogTitle>
+            <DialogDescription>Chỉ có thể sửa các hoạt động Draft, Pending hoặc Rejected.</DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap gap-2">
+            {statusBadge(activity.status)}
+            {activity.trainingPoints != null && <Badge variant="outline">{activity.trainingPoints} diem</Badge>}
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-md border border-border p-3">
+              <p className="text-xs font-medium text-muted-foreground">Thoi gian</p>
+              <p className="mt-1 text-sm text-card-foreground">
+                {formatDateTime(activity.startTime)} - {formatDateTime(activity.endTime)}
+              </p>
+            </div>
+            <div className="rounded-md border border-border p-3">
+              <p className="text-xs font-medium text-muted-foreground">Han dang ky</p>
+              <p className="mt-1 text-sm text-card-foreground">{formatDateTime(activity.registrationDeadline)}</p>
+            </div>
+            <div className="rounded-md border border-border p-3">
+              <p className="text-xs font-medium text-muted-foreground">Phong hoc</p>
+              <p className="mt-1 text-sm text-card-foreground">{activity.location || activity.roomCode || "Chua co"}</p>
+            </div>
+            <div className="rounded-md border border-border p-3">
+              <p className="text-xs font-medium text-muted-foreground">Dang ky</p>
+              <p className="mt-1 text-sm text-card-foreground">
+                {activity.enrolled}/{activity.capacity || 0}
+              </p>
+              <Progress value={getProgress(activity)} className="mt-2 h-2" />
+            </div>
+            <div className="rounded-md border border-border p-3">
+              <p className="text-xs font-medium text-muted-foreground">Kinh phi</p>
+              <p className="mt-1 text-sm text-card-foreground">{activity.budget ?? "Chua co"}</p>
+            </div>
+            <div className="rounded-md border border-border p-3">
+              <p className="text-xs font-medium text-muted-foreground">Don vi tai tro</p>
+              <p className="mt-1 text-sm text-card-foreground">{activity.sponsor || "Chua co"}</p>
+            </div>
+            <div className="rounded-md border border-border p-3 sm:col-span-2">
+              <p className="text-xs font-medium text-muted-foreground">Doi tuong tham gia</p>
+              <p className="mt-1 text-sm text-card-foreground">{activity.targetAudience || "Chua co"}</p>
+            </div>
+          </div>
+
+          <div className="rounded-md border border-border p-3">
+            <p className="text-xs font-medium text-muted-foreground">Mo ta</p>
+            <p className="mt-1 whitespace-pre-wrap text-sm text-card-foreground">{activity.description || "Chưa có mô tả"}</p>
+          </div>
+
+          <div className="rounded-md border border-border p-3">
+            <p className="text-xs font-medium text-muted-foreground">Muc dich</p>
+            <p className="mt-1 whitespace-pre-wrap text-sm text-card-foreground">{activity.purpose || "Chua co"}</p>
+          </div>
+
+          {activity.cancelReason && (
+            <div className="rounded-md border border-warning/20 bg-warning/5 p-3">
+              <p className="text-xs font-medium text-muted-foreground">Ly do huy</p>
+              <p className="mt-1 text-sm text-card-foreground">{activity.cancelReason}</p>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function ActivityParticipantsDialog({ activity, data, open, onOpenChange }) {
+  const registrations = activity ? data.registrationsByActivity[activity.id] || [] : []
+  const loadRegistrations = data.loadRegistrations
+
+  useEffect(() => {
+    if (open && activity?.id) {
+      loadRegistrations(activity.id)
+    }
+  }, [activity?.id, loadRegistrations, open])
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl">
+        <DialogHeader>
+          <DialogTitle>Danh sách sinh viên tham gia</DialogTitle>
+          <DialogDescription>{activity?.title || "Hoạt động"}</DialogDescription>
+        </DialogHeader>
+
+        {registrations.length === 0 ? (
+          <div className="py-10 text-center text-sm text-muted-foreground">Chưa có sinh viên đăng ký.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Sinh viên</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Lớp / Khoa</TableHead>
+                  <TableHead>Đăng ký</TableHead>
+                  <TableHead>Điểm danh</TableHead>
+                  <TableHead className="text-right">Điểm đã cấp</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {registrations.map((registration) => (
+                  <TableRow key={registration.id}>
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        <span className="font-medium">{getStudentName(registration)}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {registration.studentCode || registration.studentId}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{registration.studentEmail || "Chưa có"}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {[registration.className, registration.department].filter(Boolean).join(" / ") || "Chưa có"}
+                    </TableCell>
+                    <TableCell>{registrationBadge(registration.status)}</TableCell>
+                    <TableCell>{attendanceBadge(registration)}</TableCell>
+                    <TableCell className="text-right font-semibold">{registration.earnedPoints ?? 0}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function ActivityCard({ activity, actionLoading, onView, onViewParticipants, onEdit, onSubmit, onDelete, onCancelRequest }) {
   const statusKey = activity.statusKey
   const canEdit = ["draft", "pending", "rejected"].includes(statusKey)
   const canDelete = ["draft", "pending"].includes(statusKey)
@@ -328,23 +557,25 @@ function ActivityCard({ activity, actionLoading, onEdit, onSubmit, onDelete, onC
             <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{activity.description || "Chưa có mô tả"}</p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={() => onView(activity)}>
+              <Eye className="mr-1 size-4" />
+              Chi tiet
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => onViewParticipants(activity)} disabled={actionLoading}>
+              <Users className="mr-1 size-4" />
+              Sinh viên
+            </Button>
             {canEdit && (
               <Button size="sm" variant="outline" onClick={() => onEdit(activity)} disabled={actionLoading}>
-                <Edit3 className="mr-1 size-4" />
-                Sửa
-              </Button>
+                <Edit3 className="mr-1 size-4" />Sửa</Button>
             )}
             {canSubmit && (
               <Button size="sm" onClick={() => onSubmit(activity.id)} disabled={actionLoading}>
-                <Send className="mr-1 size-4" />
-                Gửi duyệt
-              </Button>
+                <Send className="mr-1 size-4" />Gửi duyệt</Button>
             )}
             {canCancel && (
               <Button size="sm" variant="outline" onClick={() => onCancelRequest(activity.id)} disabled={actionLoading}>
-                <Ban className="mr-1 size-4" />
-                Yêu cầu hủy
-              </Button>
+                <Ban className="mr-1 size-4" />Yêu cầu hủy</Button>
             )}
             {canDelete && (
               <Button
@@ -354,13 +585,10 @@ function ActivityCard({ activity, actionLoading, onEdit, onSubmit, onDelete, onC
                 onClick={() => onDelete(activity.id)}
                 disabled={actionLoading}
               >
-                <Trash2 className="mr-1 size-4" />
-                Xóa
-              </Button>
+                <Trash2 className="mr-1 size-4" />Xóa</Button>
             )}
           </div>
         </div>
-
         <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-3">
           <div className="flex items-center gap-2">
             <Calendar className="size-4" />
@@ -398,6 +626,8 @@ function ActivityCard({ activity, actionLoading, onEdit, onSubmit, onDelete, onC
 
 function MyActivitiesPanel({ data }) {
   const [editingActivity, setEditingActivity] = useState(null)
+  const [viewingActivity, setViewingActivity] = useState(null)
+  const [participantsActivity, setParticipantsActivity] = useState(null)
 
   const handleDelete = async (activityId) => {
     if (!window.confirm("Xóa hoạt động này?")) return
@@ -428,9 +658,7 @@ function MyActivitiesPanel({ data }) {
         <CardContent className="flex flex-col gap-3">
           {data.loading ? (
             <div className="flex items-center justify-center gap-2 py-10 text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" />
-              Đang tải hoạt động...
-            </div>
+              <Loader2 className="size-4 animate-spin" />Đang tải hoạt động...</div>
           ) : data.activities.length === 0 ? (
             <div className="py-10 text-center text-sm text-muted-foreground">Chưa có hoạt động nào.</div>
           ) : (
@@ -439,6 +667,8 @@ function MyActivitiesPanel({ data }) {
                 key={activity.id}
                 activity={activity}
                 actionLoading={data.actionLoading}
+                onView={setViewingActivity}
+                onViewParticipants={setParticipantsActivity}
                 onEdit={setEditingActivity}
                 onSubmit={data.submitActivity}
                 onDelete={handleDelete}
@@ -449,6 +679,19 @@ function MyActivitiesPanel({ data }) {
         </CardContent>
       </Card>
 
+      <ActivityDetailDialog
+        activity={viewingActivity}
+        open={!!viewingActivity}
+        onOpenChange={(open) => !open && setViewingActivity(null)}
+      />
+
+      <ActivityParticipantsDialog
+        activity={participantsActivity}
+        data={data}
+        open={!!participantsActivity}
+        onOpenChange={(open) => !open && setParticipantsActivity(null)}
+      />
+
       <Dialog open={!!editingActivity} onOpenChange={(open) => !open && setEditingActivity(null)}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
@@ -458,6 +701,8 @@ function MyActivitiesPanel({ data }) {
           <ActivityForm
             initialActivity={editingActivity}
             actionLoading={data.actionLoading}
+            rooms={data.rooms}
+            onCheckScheduleConflicts={data.checkScheduleConflicts}
             onCancel={() => setEditingActivity(null)}
             onSubmit={async (payload) => {
               await data.updateActivity(editingActivity.id, payload)
@@ -478,7 +723,12 @@ function CreateActivityPanel({ data }) {
         <CardDescription>Lưu thành bản nháp hoặc tạo xong gửi duyệt ngay.</CardDescription>
       </CardHeader>
       <CardContent>
-        <ActivityForm actionLoading={data.actionLoading} onSubmit={data.createActivity} />
+        <ActivityForm
+          actionLoading={data.actionLoading}
+          rooms={data.rooms}
+          onCheckScheduleConflicts={data.checkScheduleConflicts}
+          onSubmit={data.createActivity}
+        />
       </CardContent>
     </Card>
   )
@@ -586,8 +836,13 @@ function StudentsPanel({ data }) {
 }
 
 function StudentsPanelV2({ data }) {
-  const [selectedActivityId, setSelectedActivityId] = useState("")
-  const registrations = selectedActivityId ? data.registrationsByActivity[selectedActivityId] || [] : []
+  const [selectedActivityId, setSelectedActivityId] = useState("all")
+  const isAllActivities = selectedActivityId === "all"
+  const registrations = isAllActivities
+    ? data.activities.flatMap((activity) => data.registrationsByActivity[activity.id] || [])
+    : selectedActivityId
+      ? data.registrationsByActivity[selectedActivityId] || []
+      : []
   const selectedActivity = data.activities.find((activity) => activity.id === selectedActivityId)
   const loadRegistrations = data.loadRegistrations
 
@@ -602,16 +857,19 @@ function StudentsPanelV2({ data }) {
   })
 
   useEffect(() => {
-    if (!selectedActivityId && data.activities.length > 0) {
-      setSelectedActivityId(data.activities[0].id)
+    if (isAllActivities) {
+      data.activities.forEach((activity) => {
+        if (!data.registrationsByActivity[activity.id]) {
+          loadRegistrations(activity.id)
+        }
+      })
+      return
     }
-  }, [data.activities, selectedActivityId])
 
-  useEffect(() => {
     if (selectedActivityId) {
       loadRegistrations(selectedActivityId)
     }
-  }, [loadRegistrations, selectedActivityId])
+  }, [data.activities, data.registrationsByActivity, isAllActivities, loadRegistrations, selectedActivityId])
 
   const reject = async (registration) => {
     const reason = window.prompt("Nhap ly do tu choi dang ky")
@@ -680,22 +938,40 @@ function StudentsPanelV2({ data }) {
           <div>
             <CardTitle>Sinh vien dang ky</CardTitle>
             <CardDescription>
-              {selectedActivity
+              {isAllActivities
+                ? "Hoạt động: Tất cả hoạt động"
+                : selectedActivity
                 ? `Hoat dong: ${selectedActivity.title}`
                 : "Chon hoat dong de xem sinh vien cho duyet va da duyet."}
             </CardDescription>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <ActivitySelect activities={data.activities} value={selectedActivityId} onChange={setSelectedActivityId} />
+            <Select value={selectedActivityId} onValueChange={setSelectedActivityId}>
+              <SelectTrigger className="w-full sm:w-80">
+                <SelectValue placeholder="Chon hoat dong" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả hoạt động</SelectItem>
+                {data.activities.map((activity) => (
+                  <SelectItem key={activity.id} value={activity.id}>
+                    {activity.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button
               variant="outline"
               size="sm"
               disabled={!selectedActivityId || data.actionLoading}
-              onClick={() => loadRegistrations(selectedActivityId)}
+              onClick={() => {
+                if (isAllActivities) {
+                  data.activities.forEach((activity) => loadRegistrations(activity.id))
+                  return
+                }
+                loadRegistrations(selectedActivityId)
+              }}
             >
-              <RefreshCw className="mr-2 size-4" />
-              Tai lai
-            </Button>
+              <RefreshCw className="mr-2 size-4" />Tải lại</Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -755,7 +1031,10 @@ function StudentsPanelV2({ data }) {
 
 function AttendancePanel({ data }) {
   const [selectedActivityId, setSelectedActivityId] = useState("")
-  const ongoingActivities = useMemo(() => data.activities.filter((activity) => activity.statusKey === "ongoing"), [data.activities])
+  const attendanceActivities = useMemo(
+    () => data.activities.filter((activity) => ["ongoing", "closed"].includes(activity.statusKey)),
+    [data.activities],
+  )
   const registrations = selectedActivityId ? data.registrationsByActivity[selectedActivityId] || [] : []
   const approvedRegistrations = registrations.filter((registration) => getStatusKey(registration.status) === "approved")
   const getAttendance = (registration) => data.attendanceByRegistration[registration.id] || {
@@ -780,18 +1059,18 @@ function AttendancePanel({ data }) {
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <CardTitle>Điểm danh</CardTitle>
-          <CardDescription>Chỉ điểm danh các đăng ký đã duyệt của hoạt động đang diễn ra.</CardDescription>
+          <CardDescription>Điểm danh các đăng ký đã duyệt của hoạt động đang diễn ra hoặc đã kết thúc.</CardDescription>
         </div>
         <ActivitySelect
-          activities={ongoingActivities}
+          activities={attendanceActivities}
           value={selectedActivityId}
           onChange={setSelectedActivityId}
-          placeholder="Chọn hoạt động đang diễn ra"
+          placeholder="Chọn hoạt động"
         />
       </CardHeader>
       <CardContent>
-        {ongoingActivities.length === 0 ? (
-          <div className="py-10 text-center text-sm text-muted-foreground">Không có hoạt động đang diễn ra.</div>
+        {attendanceActivities.length === 0 ? (
+          <div className="py-10 text-center text-sm text-muted-foreground">Không có hoạt động đang diễn ra hoặc đã kết thúc.</div>
         ) : !selectedActivityId ? (
           <div className="py-10 text-center text-sm text-muted-foreground">Chọn hoạt động để điểm danh.</div>
         ) : approvedRegistrations.length === 0 ? (
@@ -856,23 +1135,17 @@ function AttendancePanel({ data }) {
 function ReportsAndPointsPanel({ data }) {
   const [selectedActivityId, setSelectedActivityId] = useState("")
   const [reportFile, setReportFile] = useState(null)
-  const [pointsByRegistration, setPointsByRegistration] = useState({})
   const closedActivities = useMemo(() => data.activities.filter((activity) => activity.statusKey === "closed"), [data.activities])
-  const selectedActivity = closedActivities.find((activity) => activity.id === selectedActivityId)
-  const registrations = selectedActivityId ? data.registrationsByActivity[selectedActivityId] || [] : []
-  const approvedRegistrations = registrations.filter((registration) => getStatusKey(registration.status) === "approved")
-  const loadRegistrations = data.loadRegistrations
-
-  useEffect(() => {
-    if (selectedActivityId) {
-      loadRegistrations(selectedActivityId)
-    }
-  }, [loadRegistrations, selectedActivityId])
+  const activitiesById = useMemo(() => Object.fromEntries(data.activities.map((activity) => [activity.id, activity])), [data.activities])
+  const submittedReports = useMemo(() => {
+    if (!selectedActivityId) return data.reports
+    return data.reports.filter((report) => report.activityId === selectedActivityId)
+  }, [data.reports, selectedActivityId])
 
   const submitReport = async (event) => {
     event.preventDefault()
     if (!selectedActivityId || !reportFile) {
-      window.alert("Vui long chon hoat dong va file Excel bao cao.")
+      window.alert("Vui lòng chọn hoạt động và file Excel báo cáo.")
       return
     }
 
@@ -881,12 +1154,17 @@ function ReportsAndPointsPanel({ data }) {
     event.currentTarget.reset()
   }
 
+  const cancelReport = async (report) => {
+    if (!window.confirm("Hủy nộp báo cáo này?")) return
+    await data.cancelReport(report.id)
+  }
+
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+    <div className="flex flex-col gap-4">
       <Card>
         <CardHeader>
-          <CardTitle>Bao cao sau hoat dong</CardTitle>
-          <CardDescription>Chon file Excel tu may tinh de nop bao cao cho hoat dong da ket thuc.</CardDescription>
+          <CardTitle>Báo cáo sau hoạt động</CardTitle>
+          <CardDescription>Chọn file Excel từ máy tính để nộp báo cáo cho hoạt động đã kết thúc.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={submitReport} className="flex flex-col gap-4">
@@ -894,7 +1172,7 @@ function ReportsAndPointsPanel({ data }) {
               activities={closedActivities}
               value={selectedActivityId}
               onChange={setSelectedActivityId}
-              placeholder="Chon hoat dong da ket thuc"
+              placeholder="Chọn hoạt động đã kết thúc"
             />
             <div className="flex flex-col gap-2">
               <Label htmlFor="reportFile">File Excel *</Label>
@@ -907,58 +1185,80 @@ function ReportsAndPointsPanel({ data }) {
             </div>
             <Button type="submit" disabled={data.actionLoading || !selectedActivityId || !reportFile}>
               <FileText className="mr-2 size-4" />
-              Nop bao cao
+              Nộp báo cáo
             </Button>
           </form>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Cap diem</CardTitle>
-          <CardDescription>{selectedActivity ? selectedActivity.title : "Chon hoat dong da ket thuc de cap diem."}</CardDescription>
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle>Báo cáo đã nộp</CardTitle>
+            <CardDescription>
+              {selectedActivityId ? "Đang lọc theo hoạt động đang chọn." : "Tất cả báo cáo của các hoạt động bạn quản lý."}
+            </CardDescription>
+          </div>
+          <Button variant="outline" size="sm" onClick={data.refreshAll} disabled={data.loading || data.actionLoading}>
+            <RefreshCw className="mr-2 size-4" />
+            Tải lại
+          </Button>
         </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          {!selectedActivityId ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">Chon hoat dong o khung bao cao.</div>
-          ) : approvedRegistrations.length === 0 ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">Chua co sinh vien da duyet.</div>
+        <CardContent>
+          {submittedReports.length === 0 ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">Chưa có báo cáo đã nộp.</div>
           ) : (
-            approvedRegistrations.map((registration) => (
-              <div key={registration.id} className="rounded-lg border border-border bg-secondary/30 p-3">
-                <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="font-medium text-card-foreground">{registration.studentId}</p>
-                    <p className="text-sm text-muted-foreground">Dang ky: {registration.id}</p>
-                  </div>
-                  <Badge variant="outline" className="w-fit">
-                    Mac dinh {selectedActivity?.trainingPoints ?? 0} diem
-                  </Badge>
-                </div>
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <Input
-                    type="number"
-                    min="0"
-                    placeholder="Diem"
-                    value={pointsByRegistration[registration.id] ?? ""}
-                    onChange={(event) =>
-                      setPointsByRegistration((prev) => ({
-                        ...prev,
-                        [registration.id]: event.target.value,
-                      }))
-                    }
-                  />
-                  <Button
-                    type="button"
-                    disabled={data.actionLoading}
-                    onClick={() => data.awardPoints(registration.id, pointsByRegistration[registration.id] ?? "")}
-                  >
-                    <Award className="mr-2 size-4" />
-                    Cap diem
-                  </Button>
-                </div>
-              </div>
-            ))
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Báo cáo</TableHead>
+                    <TableHead>Hoạt động</TableHead>
+                    <TableHead>Trạng thái</TableHead>
+                    <TableHead>Ngày nộp</TableHead>
+                    <TableHead>Ghi chú</TableHead>
+                    <TableHead className="w-32">Thao tác</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {submittedReports.map((report) => {
+                    const activity = activitiesById[report.activityId]
+                    const statusKey = getStatusKey(report.reportStatus)
+                    const canCancelReport = statusKey === "pending" || statusKey === "approved"
+                    return (
+                      <TableRow key={report.id}>
+                        <TableCell>
+                          <a className="font-medium text-primary underline-offset-4 hover:underline" href={report.fileUrl} target="_blank" rel="noreferrer">
+                            {report.originalFileName || report.fileUrl || report.id}
+                          </a>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1">
+                            <span>{activity?.title || report.activityId}</span>
+                            <span className="text-xs text-muted-foreground">{report.activityId}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>{statusBadge(report.reportStatus)}</TableCell>
+                        <TableCell className="text-muted-foreground">{formatDateTime(report.uploadedAt)}</TableCell>
+                        <TableCell className="text-muted-foreground">{report.reviewNote || "Chưa có"}</TableCell>
+                        <TableCell>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-destructive text-destructive hover:bg-destructive/10"
+                            disabled={!canCancelReport || data.actionLoading}
+                            onClick={() => cancelReport(report)}
+                          >
+                            <Ban className="mr-1 size-4" />
+                            Hủy
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -981,6 +1281,9 @@ function OrganizerManagementDashboard({ activeSection }) {
       {activeSection === "my-students" && <StudentsPanelV2 data={data} />}
       {activeSection === "attendance" && <AttendancePanel data={data} />}
       {activeSection === "reports-points" && <ReportsAndPointsPanel data={data} />}
+      {activeSection === "notifications" && (
+        <NotificationsPanel title="Thông báo" description="Cập nhật về hoạt động, báo cáo và đăng ký của bạn" />
+      )}
       {activeSection === "personal-profile" && <PersonalProfilePanel />}
     </div>
   )

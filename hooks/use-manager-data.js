@@ -357,6 +357,21 @@ export function useManagerData() {
     [requestJson, runMutation],
   )
 
+  const downloadReport = useCallback(
+    (reportId) =>
+      runMutation(
+        async () => {
+          const result = await requestJson(`/api/manager/activities/reports/${reportId}/download`, {
+            method: "PATCH",
+          })
+          setReports((prev) => prev.map((report) => (report.id === reportId ? { ...report, ...result } : report)))
+          return result
+        },
+        { refresh: false },
+      ),
+    [requestJson, runMutation],
+  )
+
   const rejectReport = useCallback(
     (reportId, reason) =>
       runMutation(() =>
@@ -373,6 +388,19 @@ export function useManagerData() {
       runMutation(
         () =>
           requestJson("/api/notifications", {
+            method: "POST",
+            body: JSON.stringify(payload),
+          }),
+        { refresh: false },
+      ),
+    [requestJson, runMutation],
+  )
+
+  const broadcastNotification = useCallback(
+    (payload) =>
+      runMutation(
+        () =>
+          requestJson("/api/admin/notifications/broadcast", {
             method: "POST",
             body: JSON.stringify(payload),
           }),
@@ -403,7 +431,9 @@ export function useManagerData() {
     rejectCancelRequest,
     loadScheduleConflicts,
     approveReport,
+    downloadReport,
     rejectReport,
     sendNotification,
+    broadcastNotification,
   }
 }

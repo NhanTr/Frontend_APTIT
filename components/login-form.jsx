@@ -11,7 +11,7 @@ import { GraduationCap, AlertCircle, Loader2 } from "lucide-react"
 
 export function LoginForm({ onLoginSuccess }) {
   const { login, loading, error } = useAuth()
-  const [username, setUsername] = useState("N23DCCN047")
+  const [username, setUsername] = useState("")
   const [password, setPassword] = useState("12345678")
   const [loginError, setLoginError] = useState("")
 

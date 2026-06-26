@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { PersonalProfilePanel } from "@/components/profile/personal-profile-panel"
+import { NotificationsPanel, SentNotificationsPanel } from "@/components/notifications/notifications-panel"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -10,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
@@ -51,6 +53,14 @@ const emptyUserForm = {
   phone: "",
   roleId: "4",
 }
+
+const notificationRoleOptions = [
+  { value: "all", label: "Tất cả vai trò", roleId: null },
+  { value: "1", label: "admin", roleId: 1 },
+  { value: "2", label: "manager", roleId: 2 },
+  { value: "3", label: "organizer", roleId: 3 },
+  { value: "4", label: "student", roleId: 4 },
+]
 
 function unwrapApi(data) {
   return data?.result ?? data
@@ -454,6 +464,158 @@ function AnnouncementsPanel() {
   )
 }
 
+function AdminNotificationSenderPanel() {
+  const api = useAdminApi()
+  const [form, setForm] = useState({
+    title: "",
+    content: "",
+    recipientMode: "roles",
+    roleId: "all",
+    userIds: "",
+    className: "",
+    department: "",
+  })
+  const [result, setResult] = useState(null)
+  const [error, setError] = useState(null)
+
+  function resetForm() {
+    setForm({
+      title: "",
+      content: "",
+      recipientMode: "roles",
+      roleId: "all",
+      userIds: "",
+      className: "",
+      department: "",
+    })
+  }
+
+  async function send() {
+    setError(null)
+    setResult(null)
+
+    if (!form.title.trim() || !form.content.trim()) {
+      setError("Vui long nhap tieu de va noi dung")
+      return
+    }
+
+    const userIds = form.userIds
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean)
+
+    try {
+      let response
+      if (form.recipientMode === "manual") {
+        if (userIds.length === 0) {
+          setError("Nhap it nhat mot user ID")
+          return
+        }
+
+        response = unwrapApi(await api.request("/api/notifications", {
+          method: "POST",
+          body: JSON.stringify({
+            title: form.title.trim(),
+            content: form.content.trim(),
+            type: "System",
+            userIds,
+          }),
+        }))
+      } else {
+        const selectedRole = notificationRoleOptions.find((role) => role.value === form.roleId)
+        response = unwrapApi(await api.request("/api/admin/notifications/broadcast", {
+          method: "POST",
+          body: JSON.stringify({
+            title: form.title.trim(),
+            content: form.content.trim(),
+            roleId: selectedRole?.roleId ?? null,
+            className: form.className.trim() || null,
+            department: form.department.trim() || null,
+          }),
+        }))
+      }
+
+      setResult(response)
+      resetForm()
+    } catch (err) {
+      setError(err.message || "Gui thong bao that bai")
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Gui thong bao</CardTitle>
+        <CardDescription>Gui thong bao theo vai tro hoac nhap truc tiep user ID.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <ErrorBanner message={error} />
+        {result && (
+          <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-emerald-600">
+            Da gui thong bao thanh cong.
+          </div>
+        )}
+        <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
+          <div className="grid gap-2">
+            <Label>Tieu de</Label>
+            <Input value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} />
+          </div>
+          <div className="grid gap-2">
+            <Label>Nguoi nhan</Label>
+            <RadioGroup
+              value={form.recipientMode}
+              onValueChange={(value) => setForm((p) => ({ ...p, recipientMode: value }))}
+              className="grid grid-cols-2 gap-3"
+            >
+              <Label className="flex h-9 items-center gap-2 rounded-md border border-input px-3 text-sm font-normal">
+                <RadioGroupItem value="roles" />
+                Vai tro
+              </Label>
+              <Label className="flex h-9 items-center gap-2 rounded-md border border-input px-3 text-sm font-normal">
+                <RadioGroupItem value="manual" />
+                Tu nhap
+              </Label>
+            </RadioGroup>
+          </div>
+        </div>
+        {form.recipientMode === "roles" ? (
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-2">
+              <Label>Vai tro nhan</Label>
+              <Select value={form.roleId} onValueChange={(value) => setForm((p) => ({ ...p, roleId: value }))}>
+                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {notificationRoleOptions.map((role) => (
+                    <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Khoa</Label>
+              <Input value={form.department} onChange={(e) => setForm((p) => ({ ...p, department: e.target.value }))} placeholder="CNTT" />
+            </div>
+            <div className="grid gap-2">
+              <Label>Lop</Label>
+              <Input value={form.className} onChange={(e) => setForm((p) => ({ ...p, className: e.target.value }))} placeholder="D20CQCN01-B" />
+            </div>
+          </div>
+        ) : (
+          <div className="grid gap-2">
+            <Label>Recipient user IDs</Label>
+            <Input value={form.userIds} onChange={(e) => setForm((p) => ({ ...p, userIds: e.target.value }))} placeholder="id1, id2, id3" />
+          </div>
+        )}
+        <div className="grid gap-2">
+          <Label>Noi dung</Label>
+          <Textarea value={form.content} onChange={(e) => setForm((p) => ({ ...p, content: e.target.value }))} />
+        </div>
+        <Button className="w-fit" onClick={send}><Bell className="mr-2 size-4" /> Gui thong bao</Button>
+      </CardContent>
+    </Card>
+  )
+}
+
 function SettingsPanel() {
   const api = useAdminApi()
   const configs = useAdminResource(async () => unwrapApi(await api.request("/api/admin/system-configs")), [])
@@ -528,7 +690,15 @@ export function AdminDashboard({ activeSection = "dashboard" }) {
     <div className="flex flex-col gap-4 sm:gap-6">
       {(normalizedSection === "dashboard") && <AdminOverview />}
       {(["students", "users"].includes(normalizedSection)) && <UsersPanel />}
-      {normalizedSection === "announcements" && <AnnouncementsPanel />}
+      {(["announcements", "manage-notifications"].includes(normalizedSection)) && (
+        <div className="grid gap-4">
+          <AdminNotificationSenderPanel />
+          <SentNotificationsPanel title="Thông báo đã gửi" description="Các thông báo được gửi từ tài khoản admin của bạn" />
+        </div>
+      )}
+      {normalizedSection === "notifications" && (
+        <NotificationsPanel title="Thông báo" description="Các thông báo admin đã nhận" />
+      )}
       {normalizedSection === "settings" && <SettingsPanel />}
       {normalizedSection === "personal-profile" && <PersonalProfilePanel />}
     </div>

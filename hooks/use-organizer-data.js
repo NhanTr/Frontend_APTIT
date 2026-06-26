@@ -50,7 +50,9 @@ async function readResponse(response) {
 export function useOrganizerData() {
   const { user, accessToken, refreshAccessToken, logout } = useAuth()
   const [activities, setActivities] = useState([])
+  const [rooms, setRooms] = useState([])
   const [statistics, setStatistics] = useState(null)
+  const [reports, setReports] = useState([])
   const [registrationsByActivity, setRegistrationsByActivity] = useState({})
   const [attendanceByRegistration, setAttendanceByRegistration] = useState({})
   const [loading, setLoading] = useState(false)
@@ -120,21 +122,37 @@ export function useOrganizerData() {
     return data
   }, [requestJson])
 
+  const refreshRooms = useCallback(async () => {
+    const data = await requestJson("/api/rooms")
+    const list = Array.isArray(data) ? data : []
+    setRooms(list)
+    return list
+  }, [requestJson])
+
+  const refreshReports = useCallback(async () => {
+    const data = await requestJson("/api/activities/reports/my")
+    const list = Array.isArray(data) ? data : []
+    setReports(list)
+    return list
+  }, [requestJson])
+
   const refreshAll = useCallback(async () => {
     if (!accessToken || !user?.id) return
 
     setLoading(true)
     setError(null)
     try {
-      await Promise.all([refreshActivities(), refreshStatistics()])
+      await Promise.all([refreshActivities(), refreshStatistics(), refreshReports(), refreshRooms()])
     } catch (err) {
       setError(err.message)
       setActivities([])
+      setRooms([])
       setStatistics(null)
+      setReports([])
     } finally {
       setLoading(false)
     }
-  }, [accessToken, refreshActivities, refreshStatistics, user?.id])
+  }, [accessToken, refreshActivities, refreshReports, refreshRooms, refreshStatistics, user?.id])
 
   useEffect(() => {
     refreshAll()
@@ -256,6 +274,18 @@ export function useOrganizerData() {
     [requestJson, runMutation],
   )
 
+  const checkScheduleConflicts = useCallback(
+    async ({ roomId, startTime, endTime }) => {
+      const params = new URLSearchParams()
+      params.set("roomId", roomId)
+      params.set("startTime", startTime)
+      params.set("endTime", endTime)
+      const data = await requestJson(`/api/activities/schedule-conflicts?${params.toString()}`)
+      return Array.isArray(data) ? data : []
+    },
+    [requestJson],
+  )
+
   const requestCancelActivity = useCallback(
     async (activityId, reason) =>
       runMutation(() =>
@@ -277,6 +307,16 @@ export function useOrganizerData() {
           body: formData,
         })
       }),
+    [requestJson, runMutation],
+  )
+
+  const cancelReport = useCallback(
+    async (reportId) =>
+      runMutation(() =>
+        requestJson(`/api/activities/reports/${reportId}/cancel`, {
+          method: "PATCH",
+        }),
+      ),
     [requestJson, runMutation],
   )
 
@@ -327,6 +367,24 @@ export function useOrganizerData() {
             ...prev,
             [registrationId]: result,
           }))
+          setRegistrationsByActivity((prev) =>
+            Object.fromEntries(
+              Object.entries(prev).map(([activityId, registrations]) => [
+                activityId,
+                registrations.map((registration) =>
+                  registration.id === registrationId
+                    ? {
+                        ...registration,
+                        attendanceId: result.id,
+                        isPresent: result.isPresent,
+                        checkInTime: result.checkInTime,
+                        earnedPoints: result.earnedPoints,
+                      }
+                    : registration,
+                ),
+              ]),
+            ),
+          )
           return result
         },
         { refresh: false },
@@ -358,20 +416,25 @@ export function useOrganizerData() {
 
   return {
     activities,
+    rooms,
     statistics,
+    reports,
     registrationsByActivity,
     attendanceByRegistration,
     loading,
     actionLoading,
     error,
     refreshAll,
+    refreshReports,
     loadRegistrations,
     createActivity,
     updateActivity,
     deleteActivity,
     submitActivity,
+    checkScheduleConflicts,
     requestCancelActivity,
     submitReport,
+    cancelReport,
     approveRegistration,
     rejectRegistration,
     checkInRegistration,

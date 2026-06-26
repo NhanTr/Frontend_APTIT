@@ -7,6 +7,7 @@ import {
   Bell,
   CalendarDays,
   Check,
+  Download,
   Eye,
   FileText,
   Loader2,
@@ -18,12 +19,15 @@ import {
 } from "lucide-react"
 import { useManagerData } from "@/hooks/use-manager-data"
 import { PersonalProfilePanel } from "@/components/profile/personal-profile-panel"
+import { NotificationsPanel, SentNotificationsPanel } from "@/components/notifications/notifications-panel"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
 
@@ -41,13 +45,21 @@ const statusMeta = {
 
 const reportMeta = {
   pending: { label: "Pending", className: "bg-warning/10 text-warning border-warning/20" },
+  reviewing: { label: "Dang duyet", className: "bg-primary/10 text-primary border-primary/20" },
   approved: { label: "Approved", className: "bg-success/10 text-success border-success/20" },
   rejected: { label: "Rejected", className: "bg-destructive/10 text-destructive border-destructive/20" },
   cancelled: { label: "Cancelled", className: "bg-muted text-muted-foreground border-border" },
 }
 
 const statusOptions = ["Draft", "Pending", "Reviewing", "CancellationRequested", "Approved", "Ongoing", "Closed", "Rejected", "Cancelled"]
-const reportStatusOptions = ["Pending", "Approved", "Rejected", "Cancelled"]
+const reportStatusOptions = ["Pending", "Reviewing", "Approved", "Rejected", "Cancelled"]
+const notificationRoleOptions = [
+  { value: "all", label: "Tất cả vai trò", roleId: null },
+  { value: "1", label: "admin", roleId: 1 },
+  { value: "2", label: "manager", roleId: 2 },
+  { value: "3", label: "organizer", roleId: 3 },
+  { value: "4", label: "student", roleId: 4 },
+]
 
 function getStatusKey(value) {
   return String(value || "").trim().toLowerCase()
@@ -478,6 +490,24 @@ function ReportsPanel({ data }) {
     await data.rejectReport(report.id, reason.trim())
   }
 
+  const downloadReport = async (report) => {
+    const downloadWindow = window.open("about:blank", "_blank")
+    try {
+      const updatedReport = await data.downloadReport(report.id)
+      const fileUrl = updatedReport?.fileUrl || report.fileUrl
+      if (fileUrl && downloadWindow) {
+        downloadWindow.location.href = fileUrl
+      } else if (fileUrl) {
+        window.open(fileUrl, "_blank", "noopener,noreferrer")
+      } else {
+        downloadWindow?.close()
+      }
+    } catch (error) {
+      downloadWindow?.close()
+      throw error
+    }
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-col gap-3">
@@ -534,7 +564,9 @@ function ReportsPanel({ data }) {
               </TableHeader>
               <TableBody>
                 {data.reports.map((report) => {
-                  const isPending = getStatusKey(report.reportStatus) === "pending"
+                  const statusKey = getStatusKey(report.reportStatus)
+                  const canDownload = statusKey === "pending" || statusKey === "reviewing"
+                  const canReviewDecision = statusKey === "reviewing"
                   const activity = activitiesById[report.activityId]
 
                   return (
@@ -557,15 +589,33 @@ function ReportsPanel({ data }) {
                       <TableCell className="text-muted-foreground">{formatDateTime(report.uploadedAt)}</TableCell>
                       <TableCell>
                         <div className="flex gap-2">
-                          <Button size="sm" disabled={!isPending || data.actionLoading} onClick={() => data.approveReport(report.id)}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={!canDownload || data.actionLoading}
+                            onClick={() => downloadReport(report)}
+                            title="Tai bao cao"
+                            aria-label="Tai bao cao"
+                          >
+                            <Download className="size-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            disabled={!canReviewDecision || data.actionLoading}
+                            onClick={() => data.approveReport(report.id)}
+                            title="Duyet bao cao"
+                            aria-label="Duyet bao cao"
+                          >
                             <Check className="size-4" />
                           </Button>
                           <Button
                             size="sm"
                             variant="outline"
                             className="border-destructive text-destructive hover:bg-destructive/10"
-                            disabled={!isPending || data.actionLoading}
+                            disabled={!canReviewDecision || data.actionLoading}
                             onClick={() => rejectReport(report)}
+                            title="Tu choi bao cao"
+                            aria-label="Tu choi bao cao"
                           >
                             <X className="size-4" />
                           </Button>
@@ -584,11 +634,31 @@ function ReportsPanel({ data }) {
 }
 
 function NotificationPanel({ data }) {
-  const [form, setForm] = useState({ title: "", content: "", userIds: "" })
+  const [form, setForm] = useState({
+    title: "",
+    content: "",
+    recipientMode: "roles",
+    roleId: "all",
+    userIds: "",
+    className: "",
+    department: "",
+  })
 
   const update = (event) => {
     const { name, value } = event.target
     setForm((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const resetForm = () => {
+    setForm({
+      title: "",
+      content: "",
+      recipientMode: "roles",
+      roleId: "all",
+      userIds: "",
+      className: "",
+      department: "",
+    })
   }
 
   const submit = async (event) => {
@@ -603,33 +673,95 @@ function NotificationPanel({ data }) {
       .map((item) => item.trim())
       .filter(Boolean)
 
-    await data.sendNotification({
-      title: form.title.trim(),
-      content: form.content.trim(),
-      type: "System",
-      userIds,
-    })
-    setForm({ title: "", content: "", userIds: "" })
+    if (form.recipientMode === "manual") {
+      if (userIds.length === 0) {
+        window.alert("Nhap it nhat mot user ID.")
+        return
+      }
+
+      await data.sendNotification({
+        title: form.title.trim(),
+        content: form.content.trim(),
+        type: "System",
+        userIds,
+      })
+    } else {
+      const selectedRole = notificationRoleOptions.find((role) => role.value === form.roleId)
+      await data.broadcastNotification({
+        title: form.title.trim(),
+        content: form.content.trim(),
+        roleId: selectedRole?.roleId ?? null,
+        className: form.className.trim() || null,
+        department: form.department.trim() || null,
+      })
+    }
+
+    resetForm()
   }
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Manual notification</CardTitle>
-        <CardDescription>Send a message to selected users, or leave recipients empty to broadcast.</CardDescription>
+        <CardDescription>Send a message by role filters or to typed user IDs.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={submit} className="grid gap-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="flex flex-col gap-2">
+          <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
+            <div className="grid gap-2">
               <Label htmlFor="notify-title">Title</Label>
               <Input id="notify-title" name="title" value={form.title} onChange={update} />
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="grid gap-2">
+              <Label>Recipients</Label>
+              <RadioGroup
+                value={form.recipientMode}
+                onValueChange={(value) => setForm((prev) => ({ ...prev, recipientMode: value }))}
+                className="grid grid-cols-2 gap-3"
+              >
+                <Label className="flex h-9 items-center gap-2 rounded-md border border-input px-3 text-sm font-normal">
+                  <RadioGroupItem value="roles" />
+                  Vai tro
+                </Label>
+                <Label className="flex h-9 items-center gap-2 rounded-md border border-input px-3 text-sm font-normal">
+                  <RadioGroupItem value="manual" />
+                  Tu nhap
+                </Label>
+              </RadioGroup>
+            </div>
+          </div>
+          {form.recipientMode === "roles" ? (
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-2">
+                <Label htmlFor="notify-role">Vai tro nhan</Label>
+                <Select value={form.roleId} onValueChange={(value) => setForm((prev) => ({ ...prev, roleId: value }))}>
+                  <SelectTrigger id="notify-role" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {notificationRoleOptions.map((role) => (
+                      <SelectItem key={role.value} value={role.value}>
+                        {role.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="notify-department">Khoa</Label>
+                <Input id="notify-department" name="department" value={form.department} onChange={update} placeholder="CNTT" />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="notify-class">Lop</Label>
+                <Input id="notify-class" name="className" value={form.className} onChange={update} placeholder="D20CQCN01-B" />
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-2">
               <Label htmlFor="notify-users">Recipient user IDs</Label>
               <Input id="notify-users" name="userIds" value={form.userIds} onChange={update} placeholder="id1, id2, id3" />
             </div>
-          </div>
+          )}
           <div className="flex flex-col gap-2">
             <Label htmlFor="notify-content">Content</Label>
             <Textarea id="notify-content" name="content" rows={3} value={form.content} onChange={update} />
@@ -675,7 +807,6 @@ function ManagerOverview({ data }) {
         </Card>
       </div>
       <ActivityApprovalTable data={data} mode="pending" />
-      <NotificationPanel data={data} />
     </div>
   )
 }
@@ -694,6 +825,15 @@ export function ManagerDashboard({ activeSection = "dashboard" }) {
       {activeSection === "dashboard" && <ManagerOverview data={data} />}
       {activeSection === "activity-approvals" && <ActivityApprovalTable data={data} />}
       {activeSection === "reports" && <ReportsPanel data={data} />}
+      {activeSection === "manage-notifications" && (
+        <div className="grid gap-4">
+          <NotificationPanel data={data} />
+          <SentNotificationsPanel title="Thông báo đã gửi" description="Các thông báo được gửi từ tài khoản của bạn" />
+        </div>
+      )}
+      {activeSection === "notifications" && (
+        <NotificationsPanel title="Thông báo" description="Các thông báo bạn đã nhận" />
+      )}
       {activeSection === "personal-profile" && <PersonalProfilePanel />}
     </div>
   )

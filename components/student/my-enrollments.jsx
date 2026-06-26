@@ -44,6 +44,15 @@ function isActivityOngoing(activity) {
   return Number.isFinite(startTime) && startTime <= now && (!Number.isFinite(endTime) || endTime > now)
 }
 
+function isActivityClosed(activity) {
+  const endTime = activity.endTime ? new Date(activity.endTime).getTime() : null
+  return ["closed", "completed"].includes(getStatusKey(activity.status)) || (Number.isFinite(endTime) && endTime <= Date.now())
+}
+
+function canCancelRegistration(activity) {
+  return !isActivityOngoing(activity) && !isActivityClosed(activity)
+}
+
 function getCheckInMeta(registration) {
   if (registration?.checkInTime) {
     return { label: "Checked in", className: "bg-success/10 text-success border-success/20" }
@@ -319,13 +328,15 @@ export function MyEnrollments({
                   <Button variant="outline" onClick={() => setSelectedActivity(null)}>
                     Close
                   </Button>
-                  <Button
-                    variant="destructive"
-                    disabled={unenrollingActivityIds.includes(selectedActivity.id)}
-                    onClick={() => handleUnenroll(selectedActivity.id)}
-                  >
-                    {unenrollingActivityIds.includes(selectedActivity.id) ? "Cancelling..." : "Cancel registration"}
-                  </Button>
+                  {canCancelRegistration(selectedActivity) && (
+                    <Button
+                      variant="destructive"
+                      disabled={unenrollingActivityIds.includes(selectedActivity.id)}
+                      onClick={() => handleUnenroll(selectedActivity.id)}
+                    >
+                      {unenrollingActivityIds.includes(selectedActivity.id) ? "Cancelling..." : "Cancel registration"}
+                    </Button>
+                  )}
                 </div>
               </div>
             </>

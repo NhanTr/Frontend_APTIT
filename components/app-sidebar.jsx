@@ -9,6 +9,7 @@ import {
   Users,
   UserCog,
   Bell,
+  Send,
   Settings,
   GraduationCap,
   BookOpen,
@@ -27,7 +28,8 @@ const navConfig = {
   admin: [
     { label: "Dashboard", icon: <LayoutDashboard className="size-4" /> },
     { label: "Users", icon: <Users className="size-4" /> },
-    { label: "Announcements", icon: <Bell className="size-4" /> },
+    { key: "manage-notifications", label: "Quản lý thông báo", icon: <Send className="size-4" /> },
+    { key: "notifications", label: "Thông báo", icon: <Bell className="size-4" /> },
     { label: "Settings", icon: <Settings className="size-4" /> },
     { label: "Personal Profile", icon: <UserCog className="size-4" /> },
   ],
@@ -35,6 +37,8 @@ const navConfig = {
     { label: "Dashboard", icon: <LayoutDashboard className="size-4" /> },
     { label: "Activity Approvals", icon: <CalendarDays className="size-4" /> },
     { label: "Reports", icon: <FileText className="size-4" /> },
+    { key: "manage-notifications", label: "Quản lý thông báo", icon: <Send className="size-4" /> },
+    { key: "notifications", label: "Thông báo", icon: <Bell className="size-4" /> },
     { label: "Personal Profile", icon: <UserCog className="size-4" /> },
   ],
   organizer: [
@@ -43,7 +47,8 @@ const navConfig = {
     { key: "create-activity", label: "Tạo hoạt động", icon: <Plus className="size-4" /> },
     { key: "my-students", label: "Sinh viên", icon: <Users className="size-4" /> },
     { key: "attendance", label: "Điểm danh", icon: <ClipboardList className="size-4" /> },
-    { key: "reports-points", label: "Báo cáo / Điểm", icon: <FileText className="size-4" /> },
+    { key: "reports-points", label: "Báo cáo", icon: <FileText className="size-4" /> },
+    { key: "notifications", label: "Thông báo", icon: <Bell className="size-4" /> },
     { key: "personal-profile", label: "Hồ sơ cá nhân", icon: <UserCog className="size-4" /> },
   ],
   student: [

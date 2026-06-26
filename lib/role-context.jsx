@@ -99,11 +99,17 @@ export function RoleProvider({ children }) {
       // Additional backend fields
       startTime: backendActivity.startTime,
       endTime: backendActivity.endTime,
-      budget: backendActivity.budget,
+      registrationDeadline: backendActivity.registrationDeadline,
+      roomId: backendActivity.roomId,
+      roomCode: backendActivity.roomCode,
+      maxParticipants: backendActivity.maxParticipants,
+      currentParticipants: backendActivity.currentParticipants,
       sponsor: backendActivity.sponsor,
       targetAudience: backendActivity.targetAudience,
       purpose: backendActivity.purpose,
-      trainingPoints: backendActivity.trainingPoints
+      trainingPoints: backendActivity.trainingPoints,
+      organizerId: backendActivity.organizerId,
+      reviewerId: backendActivity.reviewerId
     }
   }
 

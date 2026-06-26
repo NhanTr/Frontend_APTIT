@@ -18,7 +18,7 @@ export async function POST(req) {
 
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8080"
 
-    const response = await fetch(`${backendUrl}/auth/change-password`, {
+    const response = await fetch(`${backendUrl}/api/v1/users/change-password`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,

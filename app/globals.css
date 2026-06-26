@@ -131,7 +131,11 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    font-size: 17px;
+  }
   body {
     @apply bg-background text-foreground;
+    line-height: 1.55;
   }
 }
