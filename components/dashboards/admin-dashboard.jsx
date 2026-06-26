@@ -45,6 +45,10 @@ const emptyUserForm = {
   email: "",
   password: "",
   fullName: "",
+  studentCode: "",
+  className: "",
+  department: "",
+  phone: "",
   roleId: "4",
 }
 
@@ -237,9 +241,26 @@ function UsersPanel() {
 
   const roles = useAdminResource(async () => unwrapApi(await api.request("/api/admin/roles")), [])
   const roleOptions = Array.isArray(roles.data) ? roles.data : []
+  const selectedRoleId = Number(form.roleId)
+  const isStudentRole = selectedRoleId === 4
+  const isOrganizerRole = selectedRoleId === 3
 
   async function createUser() {
-    await api.request("/api/admin/users", { method: "POST", body: JSON.stringify({ ...form, roleId: Number(form.roleId) }) })
+    const identity = {
+      fullName: form.fullName.trim(),
+      studentCode: isStudentRole ? form.studentCode.trim() : null,
+      className: isStudentRole ? form.className.trim() : null,
+      department: form.department.trim(),
+      phone: form.phone.trim() || null,
+    }
+    const payload = {
+      username: form.username.trim(),
+      email: form.email.trim(),
+      password: form.password,
+      roleId: selectedRoleId,
+      identity: isStudentRole || isOrganizerRole ? identity : null,
+    }
+    await api.request("/api/admin/users", { method: "POST", body: JSON.stringify(payload) })
     setForm(emptyUserForm)
     setFormOpen(false)
     users.refresh()
@@ -261,7 +282,9 @@ function UsersPanel() {
     form.email.trim() &&
     form.password.trim() &&
     form.fullName.trim() &&
-    form.roleId
+    form.roleId &&
+    (!isStudentRole || (form.studentCode.trim() && form.className.trim() && form.department.trim())) &&
+    (!isOrganizerRole || form.department.trim())
 
   return (
     <div className="flex flex-col gap-4">
@@ -349,6 +372,46 @@ function UsersPanel() {
                 <SelectContent>{roleOptions.map((role) => <SelectItem key={role.id} value={String(role.id)}>{getRoleLabel(role)}</SelectItem>)}</SelectContent>
               </Select>
             </div>
+            {isStudentRole && (
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="new-user-student-code">Ma sinh vien</Label>
+                  <Input
+                    id="new-user-student-code"
+                    value={form.studentCode}
+                    onChange={(e) => setForm((p) => ({ ...p, studentCode: e.target.value }))}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="new-user-class-name">Lop</Label>
+                  <Input
+                    id="new-user-class-name"
+                    value={form.className}
+                    onChange={(e) => setForm((p) => ({ ...p, className: e.target.value }))}
+                  />
+                </div>
+              </div>
+            )}
+            {(isStudentRole || isOrganizerRole) && (
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="new-user-department">Khoa/Don vi</Label>
+                  <Input
+                    id="new-user-department"
+                    value={form.department}
+                    onChange={(e) => setForm((p) => ({ ...p, department: e.target.value }))}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="new-user-phone">So dien thoai</Label>
+                  <Input
+                    id="new-user-phone"
+                    value={form.phone}
+                    onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
+                  />
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFormOpen(false)}>Huy</Button>

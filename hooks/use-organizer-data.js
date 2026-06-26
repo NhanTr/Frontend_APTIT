@@ -59,9 +59,12 @@ export function useOrganizerData() {
 
   const makeAuthenticatedRequest = useCallback(
     async (url, options = {}, retryCount = 0) => {
+      const isFormData = options.body instanceof FormData
       const headers = {
-        "Content-Type": "application/json",
         ...(options.headers || {}),
+      }
+      if (!isFormData) {
+        headers["Content-Type"] = headers["Content-Type"] || "application/json"
       }
 
       const token = accessToken || localStorage.getItem("accessToken")
@@ -265,13 +268,15 @@ export function useOrganizerData() {
   )
 
   const submitReport = useCallback(
-    async (activityId, payload) =>
-      runMutation(() =>
-        requestJson(`/api/activities/${activityId}/reports`, {
+    async (activityId, file) =>
+      runMutation(() => {
+        const formData = new FormData()
+        formData.append("file", file)
+        return requestJson(`/api/activities/${activityId}/reports`, {
           method: "POST",
-          body: JSON.stringify(payload),
-        }),
-      ),
+          body: formData,
+        })
+      }),
     [requestJson, runMutation],
   )
 

@@ -855,13 +855,7 @@ function AttendancePanel({ data }) {
 
 function ReportsAndPointsPanel({ data }) {
   const [selectedActivityId, setSelectedActivityId] = useState("")
-  const [report, setReport] = useState({
-    fileUrl: "",
-    originalFileName: "",
-    contentType: "",
-    fileSize: "",
-    reviewNote: "",
-  })
+  const [reportFile, setReportFile] = useState(null)
   const [pointsByRegistration, setPointsByRegistration] = useState({})
   const closedActivities = useMemo(() => data.activities.filter((activity) => activity.statusKey === "closed"), [data.activities])
   const selectedActivity = closedActivities.find((activity) => activity.id === selectedActivityId)
@@ -877,27 +871,22 @@ function ReportsAndPointsPanel({ data }) {
 
   const submitReport = async (event) => {
     event.preventDefault()
-    if (!selectedActivityId || !report.fileUrl.trim()) {
-      window.alert("Vui lòng chọn hoạt động và nhập URL báo cáo.")
+    if (!selectedActivityId || !reportFile) {
+      window.alert("Vui long chon hoat dong va file Excel bao cao.")
       return
     }
 
-    await data.submitReport(selectedActivityId, {
-      fileUrl: report.fileUrl.trim(),
-      originalFileName: report.originalFileName.trim(),
-      contentType: report.contentType.trim(),
-      fileSize: report.fileSize === "" ? undefined : Number(report.fileSize),
-      reviewNote: report.reviewNote.trim(),
-    })
-    setReport({ fileUrl: "", originalFileName: "", contentType: "", fileSize: "", reviewNote: "" })
+    await data.submitReport(selectedActivityId, reportFile)
+    setReportFile(null)
+    event.currentTarget.reset()
   }
 
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <Card>
         <CardHeader>
-          <CardTitle>Báo cáo sau hoạt động</CardTitle>
-          <CardDescription>Nộp báo cáo bằng URL file cho hoạt động đã kết thúc.</CardDescription>
+          <CardTitle>Bao cao sau hoat dong</CardTitle>
+          <CardDescription>Chon file Excel tu may tinh de nop bao cao cho hoat dong da ket thuc.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={submitReport} className="flex flex-col gap-4">
@@ -905,56 +894,20 @@ function ReportsAndPointsPanel({ data }) {
               activities={closedActivities}
               value={selectedActivityId}
               onChange={setSelectedActivityId}
-              placeholder="Chọn hoạt động đã kết thúc"
+              placeholder="Chon hoat dong da ket thuc"
             />
             <div className="flex flex-col gap-2">
-              <Label htmlFor="fileUrl">URL file *</Label>
+              <Label htmlFor="reportFile">File Excel *</Label>
               <Input
-                id="fileUrl"
-                value={report.fileUrl}
-                onChange={(event) => setReport((prev) => ({ ...prev, fileUrl: event.target.value }))}
+                id="reportFile"
+                type="file"
+                accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                onChange={(event) => setReportFile(event.target.files?.[0] || null)}
               />
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="originalFileName">Tên file</Label>
-                <Input
-                  id="originalFileName"
-                  value={report.originalFileName}
-                  onChange={(event) => setReport((prev) => ({ ...prev, originalFileName: event.target.value }))}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="contentType">Content type</Label>
-                <Input
-                  id="contentType"
-                  placeholder="application/pdf"
-                  value={report.contentType}
-                  onChange={(event) => setReport((prev) => ({ ...prev, contentType: event.target.value }))}
-                />
-              </div>
-              <div className="flex flex-col gap-2 sm:col-span-2">
-                <Label htmlFor="fileSize">Dung lượng byte</Label>
-                <Input
-                  id="fileSize"
-                  type="number"
-                  min="0"
-                  value={report.fileSize}
-                  onChange={(event) => setReport((prev) => ({ ...prev, fileSize: event.target.value }))}
-                />
-              </div>
-              <div className="flex flex-col gap-2 sm:col-span-2">
-                <Label htmlFor="reviewNote">Ghi chú</Label>
-                <Textarea
-                  id="reviewNote"
-                  value={report.reviewNote}
-                  onChange={(event) => setReport((prev) => ({ ...prev, reviewNote: event.target.value }))}
-                />
-              </div>
-            </div>
-            <Button type="submit" disabled={data.actionLoading || !selectedActivityId}>
+            <Button type="submit" disabled={data.actionLoading || !selectedActivityId || !reportFile}>
               <FileText className="mr-2 size-4" />
-              Nộp báo cáo
+              Nop bao cao
             </Button>
           </form>
         </CardContent>
@@ -962,31 +915,31 @@ function ReportsAndPointsPanel({ data }) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Cấp điểm</CardTitle>
-          <CardDescription>{selectedActivity ? selectedActivity.title : "Chọn hoạt động đã kết thúc để cấp điểm."}</CardDescription>
+          <CardTitle>Cap diem</CardTitle>
+          <CardDescription>{selectedActivity ? selectedActivity.title : "Chon hoat dong da ket thuc de cap diem."}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {!selectedActivityId ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">Chọn hoạt động ở khung báo cáo.</div>
+            <div className="py-10 text-center text-sm text-muted-foreground">Chon hoat dong o khung bao cao.</div>
           ) : approvedRegistrations.length === 0 ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">Chưa có sinh viên đã duyệt.</div>
+            <div className="py-10 text-center text-sm text-muted-foreground">Chua co sinh vien da duyet.</div>
           ) : (
             approvedRegistrations.map((registration) => (
               <div key={registration.id} className="rounded-lg border border-border bg-secondary/30 p-3">
                 <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="font-medium text-card-foreground">{registration.studentId}</p>
-                    <p className="text-sm text-muted-foreground">Đăng ký: {registration.id}</p>
+                    <p className="text-sm text-muted-foreground">Dang ky: {registration.id}</p>
                   </div>
                   <Badge variant="outline" className="w-fit">
-                    Mặc định {selectedActivity?.trainingPoints ?? 0} điểm
+                    Mac dinh {selectedActivity?.trainingPoints ?? 0} diem
                   </Badge>
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <Input
                     type="number"
                     min="0"
-                    placeholder="Điểm"
+                    placeholder="Diem"
                     value={pointsByRegistration[registration.id] ?? ""}
                     onChange={(event) =>
                       setPointsByRegistration((prev) => ({
@@ -1001,7 +954,7 @@ function ReportsAndPointsPanel({ data }) {
                     onClick={() => data.awardPoints(registration.id, pointsByRegistration[registration.id] ?? "")}
                   >
                     <Award className="mr-2 size-4" />
-                    Cấp điểm
+                    Cap diem
                   </Button>
                 </div>
               </div>
@@ -1012,7 +965,6 @@ function ReportsAndPointsPanel({ data }) {
     </div>
   )
 }
-
 function OrganizerManagementDashboard({ activeSection }) {
   const data = useOrganizerData()
 
