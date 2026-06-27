@@ -82,7 +82,7 @@ export function ActivityFilter({ onFilterChange = () => {}, initialFilters = emp
         <div className="space-y-4">
           {/* Header */}
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-card-foreground">Filter Activities</h3>
+            <h3 className="text-sm font-semibold text-card-foreground">Lọc hoạt động</h3>
             {hasActiveFilters && (
               <Button
                 variant="ghost"
@@ -120,7 +120,7 @@ export function ActivityFilter({ onFilterChange = () => {}, initialFilters = emp
             {/* Sponsor Filter */}
             <div className="space-y-2">
               <Label htmlFor="sponsor-filter" className="text-xs font-medium text-muted-foreground uppercase">
-                Sponsor
+                Nhà tài trợ
               </Label>
               <Input
                 id="sponsor-filter"
@@ -134,7 +134,7 @@ export function ActivityFilter({ onFilterChange = () => {}, initialFilters = emp
             {/* Start Time Filter */}
             <div className="space-y-2">
               <Label htmlFor="start-time-filter" className="text-xs font-medium text-muted-foreground uppercase">
-                Start Time
+                Thời gian bắt đầu
               </Label>
               <Input
                 id="start-time-filter"
@@ -148,7 +148,7 @@ export function ActivityFilter({ onFilterChange = () => {}, initialFilters = emp
             {/* End Time Filter */}
             <div className="space-y-2">
               <Label htmlFor="end-time-filter" className="text-xs font-medium text-muted-foreground uppercase">
-                End Time
+                Thời gian kết thúc
               </Label>
               <Input
                 id="end-time-filter"

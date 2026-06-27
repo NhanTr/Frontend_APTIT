@@ -977,13 +977,13 @@ function StudentsPanelV2({ data }) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Ma sinh vien</TableHead>
+              <TableHead>Mã sinh viên</TableHead>
               {showActivity && <TableHead>Hoạt động</TableHead>}
-              <TableHead>Trang thai dang ky</TableHead>
-              <TableHead>Ngay dang ky</TableHead>
-              <TableHead>Nguoi duyet</TableHead>
-              {showRejectReason && <TableHead>Ly do</TableHead>}
-              {showActions && <TableHead className="w-44">Thao tac</TableHead>}
+              <TableHead>Trạng thái đăng ký</TableHead>
+              <TableHead>Ngày đăng ký</TableHead>
+              <TableHead>Người duyệt</TableHead>
+              {showRejectReason && <TableHead>Lý do</TableHead>}
+              {showActions && <TableHead className="w-44">Thao tác</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -1082,7 +1082,7 @@ function StudentsPanelV2({ data }) {
           ) : (
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-lg border border-warning/20 bg-warning/5 p-4">
-                <p className="text-sm text-muted-foreground">Cho duyet</p>
+                <p className="text-sm text-muted-foreground">Chờ duyệt</p>
                 <p className="text-2xl font-semibold text-card-foreground">{pendingRegistrations.length}</p>
               </div>
               <div className="rounded-lg border border-success/20 bg-success/5 p-4">
@@ -1102,7 +1102,7 @@ function StudentsPanelV2({ data }) {
         <>
           <Card>
             <CardHeader>
-              <CardTitle>Danh sach cho duyet</CardTitle>
+              <CardTitle>Danh sách chờ duyệt</CardTitle>
               <CardDescription>Sinh viên mới đăng ký, cần BTC/CLB duyệt hoặc từ chối.</CardDescription>
             </CardHeader>
             <CardContent>{renderRegistrationTable(pendingRegistrations, { showActions: true })}</CardContent>
@@ -1110,7 +1110,7 @@ function StudentsPanelV2({ data }) {
 
           <Card>
             <CardHeader>
-              <CardTitle>Danh sach da duyet</CardTitle>
+              <CardTitle>Danh sách đã duyệt</CardTitle>
               <CardDescription>Sinh viên đã được xác nhận tham gia hoạt động.</CardDescription>
             </CardHeader>
             <CardContent>{renderRegistrationTable(approvedRegistrations, { showActivity: true })}</CardContent>
@@ -1119,7 +1119,7 @@ function StudentsPanelV2({ data }) {
           {rejectedRegistrations.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>Danh sach da tu choi</CardTitle>
+                <CardTitle>Danh sách đã từ chối</CardTitle>
                 <CardDescription>Các đăng ký đã bị từ chối kèm lý do.</CardDescription>
               </CardHeader>
               <CardContent>{renderRegistrationTable(rejectedRegistrations, { showRejectReason: true })}</CardContent>

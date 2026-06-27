@@ -267,8 +267,8 @@ export function GuestDashboard() {
     <div className="flex flex-col gap-4 sm:gap-6">
       <Card>
         <CardHeader>
-          <CardTitle className="text-card-foreground">Browse Activities</CardTitle>
-          <CardDescription>View all available activities and events</CardDescription>
+          <CardTitle className="text-card-foreground">Hoạt động</CardTitle>
+          <CardDescription>Danh sách các hoạt động đang diễn ra</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <ActivityFilter
