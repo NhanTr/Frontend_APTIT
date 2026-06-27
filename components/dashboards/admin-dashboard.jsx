@@ -219,13 +219,13 @@ function AdminOverview() {
   return (
     <div className="flex flex-col gap-4">
       <SectionHeader
-        title="Admin Dashboard"
-        description="Quan ly tai khoan, phan quyen, thong bao va cau hinh he thong."
+        title="Bảng điều khiển quản trị"
+        description="Quản lý tài khoản, phân quyền, thông báo và cấu hình hệ thống."
       />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <AdminStatCard title="Nguoi dung" value="Quan ly" description="Tao tai khoan, khoa tai khoan va gan vai tro" icon={Users} />
-        <AdminStatCard title="Thong bao" value="Gui tin" description="Phat thong bao den cac nhom nguoi dung" icon={Bell} />
-        <AdminStatCard title="He thong" value="Cau hinh" description="Cau hinh, sao luu va xem nhat ky he thong" icon={Settings} />
+        <AdminStatCard title="Người dùng" value="Quản lý" description="Tạo tài khoản, khóa tài khoản và gán vai trò" icon={Users} />
+        <AdminStatCard title="Thông báo" value="Gửi tin" description="Phát thông báo đến các nhóm người dùng" icon={Bell} />
+        <AdminStatCard title="Hệ thống" value="Cấu hình" description="Cấu hình, sao lưu và xem nhật ký hệ thống" icon={Settings} />
       </div>
     </div>
   )
@@ -315,7 +315,7 @@ function UsersPanel() {
           </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-full"><SelectValue placeholder="Trạng thái" /></SelectTrigger>
-            <SelectContent><SelectItem value="active">Active</SelectItem><SelectItem value="inactive">Inactive</SelectItem></SelectContent>
+            <SelectContent><SelectItem value="active">Đang hoạt động</SelectItem><SelectItem value="inactive">Không hoạt động</SelectItem></SelectContent>
           </Select>
         </CardContent>
       </Card>
@@ -324,7 +324,7 @@ function UsersPanel() {
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader><TableRow><TableHead>Username</TableHead><TableHead>Email</TableHead><TableHead>Vai trò</TableHead><TableHead>Trạng thái</TableHead><TableHead className="text-right">Thao tác</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow><TableHead>Tên đăng nhập</TableHead><TableHead>Email</TableHead><TableHead>Vai trò</TableHead><TableHead>Trạng thái</TableHead><TableHead className="text-right">Thao tác</TableHead></TableRow></TableHeader>
               <TableBody>
                 {rows.map((user) => (
                   <TableRow key={user.id}>
@@ -348,12 +348,12 @@ function UsersPanel() {
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Tao nguoi dung</DialogTitle>
-            <DialogDescription>Tao tai khoan moi voi mat khau ban dau va vai tro co dinh.</DialogDescription>
+            <DialogTitle>Tạo người dùng</DialogTitle>
+            <DialogDescription>Tạo tài khoản mới với mật khẩu ban đầu và vai trò cố định.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="new-user-username">Username</Label>
+              <Label htmlFor="new-user-username">Tên đăng nhập</Label>
               <Input id="new-user-username" value={form.username} onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))} />
             </div>
             <div className="grid gap-2">
@@ -361,31 +361,31 @@ function UsersPanel() {
               <Input id="new-user-email" type="email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="new-user-password">Mat khau</Label>
+              <Label htmlFor="new-user-password">Mật khẩu</Label>
               <Input
                 id="new-user-password"
                 type="password"
                 autoComplete="new-password"
-                placeholder="Nhap mat khau ban dau"
+                placeholder="Nhập mật khẩu ban đầu"
                 value={form.password}
                 onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="new-user-full-name">Ho ten</Label>
+              <Label htmlFor="new-user-full-name">Họ tên</Label>
               <Input id="new-user-full-name" value={form.fullName} onChange={(e) => setForm((p) => ({ ...p, fullName: e.target.value }))} />
             </div>
             <div className="grid gap-2">
-              <Label>Vai tro</Label>
+              <Label>Vai trò</Label>
               <Select value={form.roleId} onValueChange={(value) => setForm((p) => ({ ...p, roleId: value }))}>
-                <SelectTrigger className="w-full"><SelectValue placeholder="Chon vai tro" /></SelectTrigger>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Chọn vai trò" /></SelectTrigger>
                 <SelectContent>{roleOptions.map((role) => <SelectItem key={role.id} value={String(role.id)}>{getRoleLabel(role)}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             {isStudentRole && (
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2">
-                  <Label htmlFor="new-user-student-code">Ma sinh vien</Label>
+                  <Label htmlFor="new-user-student-code">Mã sinh viên</Label>
                   <Input
                     id="new-user-student-code"
                     value={form.studentCode}
@@ -393,7 +393,7 @@ function UsersPanel() {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="new-user-class-name">Lop</Label>
+                  <Label htmlFor="new-user-class-name">Lớp</Label>
                   <Input
                     id="new-user-class-name"
                     value={form.className}
@@ -405,7 +405,7 @@ function UsersPanel() {
             {(isStudentRole || isOrganizerRole) && (
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2">
-                  <Label htmlFor="new-user-department">Khoa/Don vi</Label>
+                  <Label htmlFor="new-user-department">Khoa/Đơn vị</Label>
                   <Input
                     id="new-user-department"
                     value={form.department}
@@ -413,7 +413,7 @@ function UsersPanel() {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="new-user-phone">So dien thoai</Label>
+                  <Label htmlFor="new-user-phone">Số điện thoại</Label>
                   <Input
                     id="new-user-phone"
                     value={form.phone}
@@ -424,8 +424,8 @@ function UsersPanel() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setFormOpen(false)}>Huy</Button>
-            <Button onClick={createUser} disabled={!canCreateUser}>Tao</Button>
+            <Button variant="outline" onClick={() => setFormOpen(false)}>Hủy</Button>
+            <Button onClick={createUser} disabled={!canCreateUser}>Tạo</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -495,7 +495,7 @@ function AdminNotificationSenderPanel() {
     setResult(null)
 
     if (!form.title.trim() || !form.content.trim()) {
-      setError("Vui long nhap tieu de va noi dung")
+      setError("Vui lòng nhập tiêu đề và nội dung")
       return
     }
 
@@ -508,7 +508,7 @@ function AdminNotificationSenderPanel() {
       let response
       if (form.recipientMode === "manual") {
         if (userIds.length === 0) {
-          setError("Nhap it nhat mot user ID")
+          setError("Nhập ít nhất một user ID")
           return
         }
 
@@ -538,30 +538,30 @@ function AdminNotificationSenderPanel() {
       setResult(response)
       resetForm()
     } catch (err) {
-      setError(err.message || "Gui thong bao that bai")
+      setError(err.message || "Gửi thông báo thất bại")
     }
   }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Gui thong bao</CardTitle>
-        <CardDescription>Gui thong bao theo vai tro hoac nhap truc tiep user ID.</CardDescription>
+        <CardTitle>Gửi thông báo</CardTitle>
+        <CardDescription>Gửi thông báo theo vai trò hoặc nhập trực tiếp user ID.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         <ErrorBanner message={error} />
         {result && (
           <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-emerald-600">
-            Da gui thong bao thanh cong.
+            Đã gửi thông báo thành công.
           </div>
         )}
         <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
           <div className="grid gap-2">
-            <Label>Tieu de</Label>
+            <Label>Tiêu đề</Label>
             <Input value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} />
           </div>
           <div className="grid gap-2">
-            <Label>Nguoi nhan</Label>
+            <Label>Người nhận</Label>
             <RadioGroup
               value={form.recipientMode}
               onValueChange={(value) => setForm((p) => ({ ...p, recipientMode: value }))}
@@ -569,11 +569,11 @@ function AdminNotificationSenderPanel() {
             >
               <Label className="flex h-9 items-center gap-2 rounded-md border border-input px-3 text-sm font-normal">
                 <RadioGroupItem value="roles" />
-                Vai tro
+                Vai trò
               </Label>
               <Label className="flex h-9 items-center gap-2 rounded-md border border-input px-3 text-sm font-normal">
                 <RadioGroupItem value="manual" />
-                Tu nhap
+                Tự nhập
               </Label>
             </RadioGroup>
           </div>
@@ -581,7 +581,7 @@ function AdminNotificationSenderPanel() {
         {form.recipientMode === "roles" ? (
           <div className="grid gap-4 md:grid-cols-3">
             <div className="grid gap-2">
-              <Label>Vai tro nhan</Label>
+              <Label>Vai trò nhận</Label>
               <Select value={form.roleId} onValueChange={(value) => setForm((p) => ({ ...p, roleId: value }))}>
                 <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -596,7 +596,7 @@ function AdminNotificationSenderPanel() {
               <Input value={form.department} onChange={(e) => setForm((p) => ({ ...p, department: e.target.value }))} placeholder="CNTT" />
             </div>
             <div className="grid gap-2">
-              <Label>Lop</Label>
+              <Label>Lớp</Label>
               <Input value={form.className} onChange={(e) => setForm((p) => ({ ...p, className: e.target.value }))} placeholder="D20CQCN01-B" />
             </div>
           </div>
@@ -607,10 +607,10 @@ function AdminNotificationSenderPanel() {
           </div>
         )}
         <div className="grid gap-2">
-          <Label>Noi dung</Label>
+          <Label>Nội dung</Label>
           <Textarea value={form.content} onChange={(e) => setForm((p) => ({ ...p, content: e.target.value }))} />
         </div>
-        <Button className="w-fit" onClick={send}><Bell className="mr-2 size-4" /> Gui thong bao</Button>
+        <Button className="w-fit" onClick={send}><Bell className="mr-2 size-4" /> Gửi thông báo</Button>
       </CardContent>
     </Card>
   )
@@ -654,7 +654,7 @@ function SettingsPanel() {
       backups.refresh()
       logs.refresh()
     } catch (err) {
-      setBackupActionError(err.message || "Restore backup failed")
+      setBackupActionError(err.message || "Khôi phục bản sao lưu thất bại")
     } finally {
       setRestoring(false)
     }
@@ -667,7 +667,7 @@ function SettingsPanel() {
         <CardContent><ErrorBanner message={configs.error} />{configs.loading ? "Đang tải..." : <div className="grid gap-3">{visibleConfigs.map((cfg) => <ConfigRow key={cfg.key} config={cfg} onSave={updateConfig} />)}</div>}</CardContent>
       </Card>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between"><div><CardTitle className="flex items-center gap-2"><DatabaseBackup className="size-5" /> Sao lưu dữ liệu</CardTitle><CardDescription>Tạo và xem danh sách bản sao lưu.</CardDescription></div><Button onClick={createBackup}>Tạo backup</Button></CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between"><div><CardTitle className="flex items-center gap-2"><DatabaseBackup className="size-5" /> Sao lưu dữ liệu</CardTitle><CardDescription>Tạo và xem danh sách bản sao lưu.</CardDescription></div><Button onClick={createBackup}>Tạo bản sao lưu</Button></CardHeader>
         <CardContent>
           <BackupTable
             rows={Array.isArray(backups.data) ? backups.data : []}
@@ -678,25 +678,25 @@ function SettingsPanel() {
         </CardContent>
       </Card>
       <Card>
-        <CardHeader><CardTitle className="flex items-center gap-2"><History className="size-5" /> System Logs</CardTitle><CardDescription>Theo dõi thao tác hệ thống gần đây.</CardDescription></CardHeader>
+        <CardHeader><CardTitle className="flex items-center gap-2"><History className="size-5" /> Nhật ký hệ thống</CardTitle><CardDescription>Theo dõi thao tác hệ thống gần đây.</CardDescription></CardHeader>
         <CardContent><GenericTable rows={getPageItems(logs.data)} loading={logs.loading} error={logs.error} /></CardContent>
       </Card>
       <Dialog open={Boolean(restoreTarget)} onOpenChange={(open) => !open && setRestoreTarget(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Restore backup</DialogTitle>
+            <DialogTitle>Khôi phục bản sao lưu</DialogTitle>
             <DialogDescription>
               Hanh dong nay se xoa du lieu hien tai va phuc hoi toan bo du lieu tu file backup da chon.
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
-            File: <span className="font-medium">{restoreTarget?.fileName}</span>
+            Tệp: <span className="font-medium">{restoreTarget?.fileName}</span>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRestoreTarget(null)} disabled={restoring}>Huy</Button>
+            <Button variant="outline" onClick={() => setRestoreTarget(null)} disabled={restoring}>Hủy</Button>
             <Button variant="destructive" onClick={restoreBackup} disabled={restoring}>
               {restoring ? <Loader2 className="mr-2 size-4 animate-spin" /> : <RefreshCw className="mr-2 size-4" />}
-              Restore
+              Khôi phục
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -714,7 +714,7 @@ function ConfigRow({ config, onSave }) {
       <div>
         <div className="font-medium">{config.key}</div>
         <div className="text-xs text-muted-foreground">
-          {config.description || config.type || "System config"}
+          {config.description || config.type || "Cấu hình hệ thống"}
         </div>
       </div>
       <Input value={value} onChange={(e) => setValue(e.target.value)} />
@@ -729,14 +729,14 @@ function BackupTable({ rows = [], loading, error, onRestore }) {
   return (
     <div className="grid gap-3">
       <ErrorBanner message={error} />
-      {loading ? <div className="text-sm text-muted-foreground">Dang tai...</div> : rows.length === 0 ? <div className="text-sm text-muted-foreground">Khong co du lieu.</div> : (
+      {loading ? <div className="text-sm text-muted-foreground">Đang tải...</div> : rows.length === 0 ? <div className="text-sm text-muted-foreground">Không có dữ liệu.</div> : (
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>fileName</TableHead>
-                <TableHead>size</TableHead>
-                <TableHead>createdAt</TableHead>
+                <TableHead>Tên file</TableHead>
+                <TableHead>Dung lượng</TableHead>
+                <TableHead>Ngày tạo</TableHead>
                 <TableHead className="text-right">Thao tac</TableHead>
               </TableRow>
             </TableHeader>
@@ -748,7 +748,7 @@ function BackupTable({ rows = [], loading, error, onRestore }) {
                   <TableCell>{backup.createdAt}</TableCell>
                   <TableCell className="text-right">
                     <Button size="sm" variant="outline" onClick={() => onRestore(backup)}>
-                      <RefreshCw className="mr-2 size-4" /> Restore
+                      <RefreshCw className="mr-2 size-4" /> Khôi phục
                     </Button>
                   </TableCell>
                 </TableRow>

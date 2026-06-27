@@ -14,9 +14,9 @@ function getStatusKey(status) {
 }
 
 function formatDateTime(value) {
-  if (!value) return "Not set"
+  if (!value) return "Chưa thiết lập"
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return "Not set"
+  if (Number.isNaN(date.getTime())) return "Chưa thiết lập"
   return date.toLocaleString("vi-VN", {
     year: "numeric",
     month: "2-digit",
@@ -33,10 +33,10 @@ function attendanceBadge(activity) {
   return (
     <div className="flex flex-wrap gap-1">
       <Badge variant="outline" className={checkedIn ? "bg-success/10 text-success border-success/20" : "bg-muted text-muted-foreground border-border"}>
-        {checkedIn ? "Checked in" : "Not checked in"}
+        {checkedIn ? "Đã check-in" : "Chưa check-in"}
       </Badge>
       <Badge variant="outline" className={present ? "bg-success/10 text-success border-success/20" : "text-muted-foreground"}>
-        {present ? "Present" : "Not confirmed"}
+        {present ? "Có mặt" : "Chưa xác nhận"}
       </Badge>
     </div>
   )
@@ -45,15 +45,15 @@ function attendanceBadge(activity) {
 function statusBadge(status) {
   const key = getStatusKey(status)
   if (key === "closed" || key === "completed") {
-    return <Badge variant="outline">Closed</Badge>
+    return <Badge variant="outline">Đã kết thúc</Badge>
   }
   if (key === "ongoing") {
-    return <Badge className="bg-success/10 text-success border-success/20">Ongoing</Badge>
+    return <Badge className="bg-success/10 text-success border-success/20">Đang diễn ra</Badge>
   }
   if (key === "approved") {
-    return <Badge className="bg-primary/10 text-primary border-primary/20">Approved</Badge>
+    return <Badge className="bg-primary/10 text-primary border-primary/20">Đã duyệt</Badge>
   }
-  return <Badge variant="outline">{status || "Unknown"}</Badge>
+  return <Badge variant="outline">{status || "Không rõ"}</Badge>
 }
 
 export function MyPoints({ getMyPoints }) {
@@ -101,7 +101,7 @@ export function MyPoints({ getMyPoints }) {
       <div className="grid gap-3 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Total points</CardDescription>
+            <CardDescription>Tổng điểm</CardDescription>
             <CardTitle className="flex items-center gap-2 text-3xl">
               <Award className="size-6 text-primary" />
               {pointsData.totalPoints}
@@ -110,7 +110,7 @@ export function MyPoints({ getMyPoints }) {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Present activities</CardDescription>
+            <CardDescription>Hoạt động có mặt</CardDescription>
             <CardTitle className="flex items-center gap-2 text-3xl">
               <CheckCircle2 className="size-6 text-success" />
               {attendedActivities}
@@ -119,7 +119,7 @@ export function MyPoints({ getMyPoints }) {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Closed activities</CardDescription>
+            <CardDescription>Hoạt động đã kết thúc</CardDescription>
             <CardTitle className="flex items-center gap-2 text-3xl">
               <Clock className="size-6 text-muted-foreground" />
               {closedActivities}
@@ -131,8 +131,8 @@ export function MyPoints({ getMyPoints }) {
       <Card>
         <CardHeader className="gap-3">
           <div>
-            <CardTitle>My Points</CardTitle>
-            <CardDescription>Track your training points and attendance history.</CardDescription>
+            <CardTitle>Điểm của tôi</CardTitle>
+            <CardDescription>Theo dõi điểm rèn luyện và lịch sử tham dự.</CardDescription>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Input
@@ -140,38 +140,38 @@ export function MyPoints({ getMyPoints }) {
               inputMode="numeric"
               value={year}
               onChange={(event) => setYear(event.target.value)}
-              placeholder="Year"
+              placeholder="Năm"
             />
             <Select value={semester} onValueChange={setSemester}>
               <SelectTrigger className="w-full sm:w-40">
-                <SelectValue placeholder="Semester" />
+                <SelectValue placeholder="Học kỳ" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All semesters</SelectItem>
-                <SelectItem value="1">Semester 1</SelectItem>
-                <SelectItem value="2">Semester 2</SelectItem>
+                <SelectItem value="all">Tất cả học kỳ</SelectItem>
+                <SelectItem value="1">Học kỳ 1</SelectItem>
+                <SelectItem value="2">Học kỳ 2</SelectItem>
               </SelectContent>
             </Select>
             <Button variant="outline" onClick={loadPoints} disabled={loading}>
               <RefreshCw className="mr-2 size-4" />
-              {loading ? "Loading..." : "Refresh"}
+              {loading ? "Đang tải..." : "Tải lại"}
             </Button>
           </div>
         </CardHeader>
         <CardContent>
           {pointsData.activities.length === 0 ? (
             <div className="py-10 text-center text-sm text-muted-foreground">
-              No point history found for the selected period.
+              Chưa có lịch sử điểm trong khoảng thời gian đã chọn.
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Activity</TableHead>
+                  <TableHead>Hoạt động</TableHead>
                   <TableHead>Time</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Trạng thái</TableHead>
                   <TableHead>Attendance</TableHead>
-                  <TableHead className="text-right">Points</TableHead>
+                  <TableHead className="text-right">Điểm</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -179,10 +179,10 @@ export function MyPoints({ getMyPoints }) {
                   <TableRow key={activity.registrationId || activity.activityId}>
                     <TableCell>
                       <div className="flex min-w-56 flex-col gap-1">
-                        <span className="font-medium">{activity.activityTitle || "Untitled activity"}</span>
+                        <span className="font-medium">{activity.activityTitle || "Hoạt động chưa có tên"}</span>
                         <span className="flex items-center gap-1 text-xs text-muted-foreground">
                           <MapPin className="size-3" />
-                          {activity.location || "No location"}
+                          {activity.location || "Chưa có địa điểm"}
                         </span>
                       </div>
                     </TableCell>

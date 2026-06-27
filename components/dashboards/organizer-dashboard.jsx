@@ -285,7 +285,7 @@ function ActivityForm({ initialActivity, actionLoading, rooms = [], onCheckSched
             onValueChange={(value) => setForm((prev) => ({ ...prev, roomId: value }))}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Chon phong hoc" />
+              <SelectValue placeholder="Chọn phòng học" />
             </SelectTrigger>
             <SelectContent>
               {Object.entries(roomsByFloor).map(([floor, floorRooms]) => (
@@ -300,10 +300,10 @@ function ActivityForm({ initialActivity, actionLoading, rooms = [], onCheckSched
               ))}
             </SelectContent>
           </Select>
-          {checkingSchedule && <p className="text-xs text-muted-foreground">Dang kiem tra trung lich...</p>}
+          {checkingSchedule && <p className="text-xs text-muted-foreground">Đang kiểm tra trùng lịch...</p>}
           {!checkingSchedule && scheduleConflicts.length > 0 && (
             <div className="rounded-md border border-warning/20 bg-warning/5 p-3 text-sm">
-              <p className="mb-2 font-medium text-card-foreground">Phong nay dang trung lich</p>
+              <p className="mb-2 font-medium text-card-foreground">Phòng này đang trùng lịch</p>
               <div className="flex flex-col gap-1 text-muted-foreground">
                 {scheduleConflicts.map((conflict) => (
                   <p key={`${conflict.activityId}-${conflict.startTime}`}>
@@ -411,13 +411,13 @@ function ActivityDetailDialog({ activity, open, onOpenChange }) {
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Sửa hoạt động</DialogTitle>
-            <DialogDescription>Chỉ có thể sửa các hoạt động Draft, Pending hoặc Rejected.</DialogDescription>
+            <DialogDescription>Chỉ có thể sửa các hoạt động bản nháp, chờ duyệt hoặc bị từ chối.</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap gap-2">
             {statusBadge(activity.status)}
-            {activity.trainingPoints != null && <Badge variant="outline">{activity.trainingPoints} diem</Badge>}
+            {activity.trainingPoints != null && <Badge variant="outline">{activity.trainingPoints} điểm</Badge>}
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -432,11 +432,11 @@ function ActivityDetailDialog({ activity, open, onOpenChange }) {
               <p className="mt-1 text-sm text-card-foreground">{formatDateTime(activity.registrationDeadline)}</p>
             </div>
             <div className="rounded-md border border-border p-3">
-              <p className="text-xs font-medium text-muted-foreground">Phong hoc</p>
-              <p className="mt-1 text-sm text-card-foreground">{activity.location || activity.roomCode || "Chua co"}</p>
+              <p className="text-xs font-medium text-muted-foreground">Phòng học</p>
+              <p className="mt-1 text-sm text-card-foreground">{activity.location || activity.roomCode || "Chưa có"}</p>
             </div>
             <div className="rounded-md border border-border p-3">
-              <p className="text-xs font-medium text-muted-foreground">Dang ky</p>
+              <p className="text-xs font-medium text-muted-foreground">Đăng ký</p>
               <p className="mt-1 text-sm text-card-foreground">
                 {activity.enrolled}/{activity.capacity || 0}
               </p>
@@ -444,15 +444,15 @@ function ActivityDetailDialog({ activity, open, onOpenChange }) {
             </div>
             <div className="rounded-md border border-border p-3">
               <p className="text-xs font-medium text-muted-foreground">Kinh phi</p>
-              <p className="mt-1 text-sm text-card-foreground">{activity.budget ?? "Chua co"}</p>
+              <p className="mt-1 text-sm text-card-foreground">{activity.budget ?? "Chưa có"}</p>
             </div>
             <div className="rounded-md border border-border p-3">
-              <p className="text-xs font-medium text-muted-foreground">Don vi tai tro</p>
-              <p className="mt-1 text-sm text-card-foreground">{activity.sponsor || "Chua co"}</p>
+              <p className="text-xs font-medium text-muted-foreground">Đơn vị tài trợ</p>
+              <p className="mt-1 text-sm text-card-foreground">{activity.sponsor || "Chưa có"}</p>
             </div>
             <div className="rounded-md border border-border p-3 sm:col-span-2">
               <p className="text-xs font-medium text-muted-foreground">Doi tuong tham gia</p>
-              <p className="mt-1 text-sm text-card-foreground">{activity.targetAudience || "Chua co"}</p>
+              <p className="mt-1 text-sm text-card-foreground">{activity.targetAudience || "Chưa có"}</p>
             </div>
           </div>
 
@@ -463,7 +463,7 @@ function ActivityDetailDialog({ activity, open, onOpenChange }) {
 
           <div className="rounded-md border border-border p-3">
             <p className="text-xs font-medium text-muted-foreground">Muc dich</p>
-            <p className="mt-1 whitespace-pre-wrap text-sm text-card-foreground">{activity.purpose || "Chua co"}</p>
+            <p className="mt-1 whitespace-pre-wrap text-sm text-card-foreground">{activity.purpose || "Chưa có"}</p>
           </div>
 
           {activity.cancelReason && (
@@ -696,7 +696,7 @@ function MyActivitiesPanel({ data }) {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>Sửa hoạt động</DialogTitle>
-            <DialogDescription>Chỉ có thể sửa các hoạt động Draft, Pending hoặc Rejected.</DialogDescription>
+            <DialogDescription>Chỉ có thể sửa các hoạt động bản nháp, chờ duyệt hoặc bị từ chối.</DialogDescription>
           </DialogHeader>
           <ActivityForm
             initialActivity={editingActivity}
@@ -844,7 +844,7 @@ function StudentsPanelV2({ data }) {
   )
   const withActivityTitle = (registration) => ({
     ...registration,
-    activityTitle: activityById[registration.activityId]?.title || registration.activityId || "Chua co",
+    activityTitle: activityById[registration.activityId]?.title || registration.activityId || "Chưa có",
   })
   const registrations = isAllActivities
     ? data.activities.flatMap((activity) =>
@@ -882,14 +882,14 @@ function StudentsPanelV2({ data }) {
   }, [data.activities, data.registrationsByActivity, isAllActivities, loadRegistrations, selectedActivityId])
 
   const reject = async (registration) => {
-    const reason = window.prompt("Nhap ly do tu choi dang ky")
+    const reason = window.prompt("Nhập lý do từ chối đăng ký")
     if (!reason?.trim()) return
     await data.rejectRegistration(registration.activityId, registration.studentId, reason.trim())
   }
 
   const renderRegistrationTable = (items, { showActions = false, showActivity = false, showRejectReason = false } = {}) => {
     if (items.length === 0) {
-      return <div className="py-8 text-center text-sm text-muted-foreground">Khong co sinh vien trong nhom nay.</div>
+      return <div className="py-8 text-center text-sm text-muted-foreground">Không có sinh viên trong nhóm này.</div>
     }
 
     return (
@@ -898,7 +898,7 @@ function StudentsPanelV2({ data }) {
           <TableHeader>
             <TableRow>
               <TableHead>Ma sinh vien</TableHead>
-              {showActivity && <TableHead>Hoat dong</TableHead>}
+              {showActivity && <TableHead>Hoạt động</TableHead>}
               <TableHead>Trang thai dang ky</TableHead>
               <TableHead>Ngay dang ky</TableHead>
               <TableHead>Nguoi duyet</TableHead>
@@ -917,10 +917,10 @@ function StudentsPanelV2({ data }) {
                 )}
                 <TableCell>{registrationBadge(registration.status)}</TableCell>
                 <TableCell className="text-muted-foreground">{formatDateTime(registration.createdAt)}</TableCell>
-                <TableCell className="text-muted-foreground">{registration.approvedBy || "Chua co"}</TableCell>
+                <TableCell className="text-muted-foreground">{registration.approvedBy || "Chưa có"}</TableCell>
                 {showRejectReason && (
                   <TableCell className="max-w-96 text-muted-foreground">
-                    <span className="line-clamp-2">{registration.rejectReason || "Chua co ly do"}</span>
+                    <span className="line-clamp-2">{registration.rejectReason || "Chưa có lý do"}</span>
                   </TableCell>
                 )}
                 {showActions && (
@@ -958,19 +958,19 @@ function StudentsPanelV2({ data }) {
       <Card>
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle>Sinh vien dang ky</CardTitle>
+            <CardTitle>Sinh viên đăng ký</CardTitle>
             <CardDescription>
               {isAllActivities
                 ? "Hoạt động: Tất cả hoạt động"
                 : selectedActivity
-                ? `Hoat dong: ${selectedActivity.title}`
-                : "Chon hoat dong de xem sinh vien cho duyet va da duyet."}
+                ? `Hoạt động: ${selectedActivity.title}`
+                : "Chọn hoạt động để xem sinh viên chờ duyệt và đã duyệt."}
             </CardDescription>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Select value={selectedActivityId} onValueChange={setSelectedActivityId}>
               <SelectTrigger className="w-full sm:w-80">
-                <SelectValue placeholder="Chon hoat dong" />
+                <SelectValue placeholder="Chọn hoạt động" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tất cả hoạt động</SelectItem>
@@ -998,7 +998,7 @@ function StudentsPanelV2({ data }) {
         </CardHeader>
         <CardContent>
           {!selectedActivityId ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">Chon mot hoat dong de xem danh sach.</div>
+            <div className="py-10 text-center text-sm text-muted-foreground">Chọn một hoạt động để xem danh sách.</div>
           ) : (
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-lg border border-warning/20 bg-warning/5 p-4">
@@ -1006,11 +1006,11 @@ function StudentsPanelV2({ data }) {
                 <p className="text-2xl font-semibold text-card-foreground">{pendingRegistrations.length}</p>
               </div>
               <div className="rounded-lg border border-success/20 bg-success/5 p-4">
-                <p className="text-sm text-muted-foreground">Da duyet</p>
+                <p className="text-sm text-muted-foreground">Đã duyệt</p>
                 <p className="text-2xl font-semibold text-card-foreground">{approvedRegistrations.length}</p>
               </div>
               <div className="rounded-lg border border-border bg-secondary/30 p-4">
-                <p className="text-sm text-muted-foreground">Da tu choi</p>
+                <p className="text-sm text-muted-foreground">Đã từ chối</p>
                 <p className="text-2xl font-semibold text-card-foreground">{rejectedRegistrations.length}</p>
               </div>
             </div>
@@ -1023,7 +1023,7 @@ function StudentsPanelV2({ data }) {
           <Card>
             <CardHeader>
               <CardTitle>Danh sach cho duyet</CardTitle>
-              <CardDescription>Sinh vien moi dang ky, can BTC/CLB duyet hoac tu choi.</CardDescription>
+              <CardDescription>Sinh viên mới đăng ký, cần BTC/CLB duyệt hoặc từ chối.</CardDescription>
             </CardHeader>
             <CardContent>{renderRegistrationTable(pendingRegistrations, { showActions: true })}</CardContent>
           </Card>
@@ -1031,7 +1031,7 @@ function StudentsPanelV2({ data }) {
           <Card>
             <CardHeader>
               <CardTitle>Danh sach da duyet</CardTitle>
-              <CardDescription>Sinh vien da duoc xac nhan tham gia hoat dong.</CardDescription>
+              <CardDescription>Sinh viên đã được xác nhận tham gia hoạt động.</CardDescription>
             </CardHeader>
             <CardContent>{renderRegistrationTable(approvedRegistrations, { showActivity: true })}</CardContent>
           </Card>
@@ -1040,7 +1040,7 @@ function StudentsPanelV2({ data }) {
             <Card>
               <CardHeader>
                 <CardTitle>Danh sach da tu choi</CardTitle>
-                <CardDescription>Cac dang ky da bi tu choi kem ly do.</CardDescription>
+                <CardDescription>Các đăng ký đã bị từ chối kèm lý do.</CardDescription>
               </CardHeader>
               <CardContent>{renderRegistrationTable(rejectedRegistrations, { showRejectReason: true })}</CardContent>
             </Card>
@@ -1101,11 +1101,11 @@ function AttendancePanel({ data }) {
           <div className="flex flex-col gap-3">
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-lg border border-border bg-background px-3 py-2">
-                <p className="text-xs text-muted-foreground">Tong da duyet</p>
+                <p className="text-xs text-muted-foreground">Tổng đã duyệt</p>
                 <p className="text-xl font-semibold text-card-foreground">{approvedRegistrations.length}</p>
               </div>
               <div className="rounded-lg border border-success/20 bg-success/5 px-3 py-2">
-                <p className="text-xs text-muted-foreground">Da check-in</p>
+                <p className="text-xs text-muted-foreground">Đã check-in</p>
                 <p className="text-xl font-semibold text-success">{checkedInCount}</p>
               </div>
               <div className="rounded-lg border border-border bg-background px-3 py-2">
@@ -1132,7 +1132,7 @@ function AttendancePanel({ data }) {
                       variant="outline"
                       className={checkedIn ? "bg-success/10 text-success border-success/20" : "bg-muted text-muted-foreground border-border"}
                     >
-                      {checkedIn ? "Da check-in" : "Chua check-in"}
+                      {checkedIn ? "Đã check-in" : "Chưa check-in"}
                     </Badge>
                     <Checkbox
                       checked={present}

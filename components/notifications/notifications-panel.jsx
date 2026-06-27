@@ -40,7 +40,7 @@ function simplifyTargetLabel(label) {
 }
 
 function getRecipientLabel(notification) {
-  return simplifyTargetLabel(notification?.targetLabel) || notification?.receiverName || notification?.receiverId || "Unknown"
+  return simplifyTargetLabel(notification?.targetLabel) || notification?.receiverName || notification?.receiverId || "Không rõ"
 }
 
 function groupSentNotifications(notifications) {
@@ -100,12 +100,12 @@ async function authenticatedFetch(url, options = {}) {
 
   const data = await response.json().catch(() => ({}))
   if (!response.ok) {
-    throw new Error(data?.error || data?.message || "Request failed")
+    throw new Error(data?.error || data?.message || "Yêu cầu thất bại")
   }
   return data
 }
 
-export function NotificationsPanel({ title = "Notifications", description = "Your latest system and activity updates" }) {
+export function NotificationsPanel({ title = "Thông báo", description = "Các cập nhật hệ thống và hoạt động mới nhất" }) {
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
   const [actionLoadingId, setActionLoadingId] = useState("")
@@ -125,7 +125,7 @@ export function NotificationsPanel({ title = "Notifications", description = "You
       const data = await authenticatedFetch("/api/notifications")
       setNotifications(unwrapNotifications(data))
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load notifications")
+      setError(err instanceof Error ? err.message : "Không thể tải thông báo")
     } finally {
       setLoading(false)
     }
@@ -148,7 +148,7 @@ export function NotificationsPanel({ title = "Notifications", description = "You
         prev.map((item) => (item.id === notification.id ? { ...item, ...updated, isRead } : item)),
       )
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update notification")
+      setError(err instanceof Error ? err.message : "Không thể cập nhật thông báo")
     } finally {
       setActionLoadingId("")
     }
@@ -166,7 +166,7 @@ export function NotificationsPanel({ title = "Notifications", description = "You
         targetLabel: detail?.targetLabel || notification.targetLabel,
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load notification detail")
+      setError(err instanceof Error ? err.message : "Không thể tải chi tiết thông báo")
     } finally {
       setDetailLoadingId("")
     }
@@ -180,13 +180,13 @@ export function NotificationsPanel({ title = "Notifications", description = "You
             <CardTitle className="flex items-center gap-2 text-card-foreground">
               <Bell className="size-5" />
               {title}
-              {unreadCount > 0 && <Badge variant="outline">{unreadCount} unread</Badge>}
+              {unreadCount > 0 && <Badge variant="outline">{unreadCount} chưa đọc</Badge>}
             </CardTitle>
             <CardDescription>{description}</CardDescription>
           </div>
           <Button variant="outline" size="sm" onClick={loadNotifications} disabled={loading}>
             {loading ? <Loader2 className="mr-2 size-4 animate-spin" /> : <RefreshCw className="mr-2 size-4" />}
-            Refresh
+            Tải lại
           </Button>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
@@ -199,12 +199,12 @@ export function NotificationsPanel({ title = "Notifications", description = "You
           {loading ? (
             <div className="flex items-center justify-center gap-2 py-10 text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
-              Loading notifications...
+              Đang tải thông báo...
             </div>
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-10 text-center text-muted-foreground">
               <Bell className="size-10 opacity-50" />
-              <p className="text-sm">No notifications yet.</p>
+              <p className="text-sm">Chưa có thông báo.</p>
             </div>
           ) : (
             notifications.map((notification) => {
@@ -219,15 +219,15 @@ export function NotificationsPanel({ title = "Notifications", description = "You
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <div className="mb-1 flex flex-wrap items-center gap-2">
-                        <p className="font-medium text-card-foreground">{notification.title || "Notification"}</p>
+                        <p className="font-medium text-card-foreground">{notification.title || "Thông báo"}</p>
                         {notification.type && <Badge variant="outline">{notification.type}</Badge>}
-                        {isUnread && <Badge>New</Badge>}
+                        {isUnread && <Badge>Mới</Badge>}
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        From: {notification.senderName || notification.senderId || "System"}
+                        Từ: {notification.senderName || notification.senderId || "Hệ thống"}
                       </p>
                       <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                        {notification.content || "No content"}
+                        {notification.content || "Chưa có nội dung"}
                       </p>
                       <p className="mt-2 text-xs text-muted-foreground">{formatDateTime(notification.createdAt)}</p>
                     </div>
@@ -243,7 +243,7 @@ export function NotificationsPanel({ title = "Notifications", description = "You
                         ) : (
                           <Eye className="mr-2 size-4" />
                         )}
-                        View
+                        Xem
                       </Button>
                       <Button
                         variant="outline"
@@ -256,7 +256,7 @@ export function NotificationsPanel({ title = "Notifications", description = "You
                         ) : (
                           <CheckCheck className="mr-2 size-4" />
                         )}
-                        {isUnread ? "Mark read" : "Mark unread"}
+                        {isUnread ? "Đánh dấu đã đọc" : "Đánh dấu chưa đọc"}
                       </Button>
                     </div>
                   </div>
@@ -272,7 +272,7 @@ export function NotificationsPanel({ title = "Notifications", description = "You
   )
 }
 
-export function SentNotificationsPanel({ title = "Sent notifications", description = "Notifications you have sent" }) {
+export function SentNotificationsPanel({ title = "Thông báo đã gửi", description = "Các thông báo bạn đã gửi" }) {
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
   const [detailLoadingId, setDetailLoadingId] = useState("")
@@ -286,7 +286,7 @@ export function SentNotificationsPanel({ title = "Sent notifications", descripti
       const data = await authenticatedFetch("/api/notifications/sent")
       setNotifications(unwrapNotifications(data))
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load sent notifications")
+      setError(err instanceof Error ? err.message : "Không thể tải thông báo đã gửi")
     } finally {
       setLoading(false)
     }
@@ -310,7 +310,7 @@ export function SentNotificationsPanel({ title = "Sent notifications", descripti
         targetLabel: detail?.targetLabel || notification.targetLabel,
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load notification detail")
+      setError(err instanceof Error ? err.message : "Không thể tải chi tiết thông báo")
     } finally {
       setDetailLoadingId("")
     }
@@ -329,7 +329,7 @@ export function SentNotificationsPanel({ title = "Sent notifications", descripti
           </div>
           <Button variant="outline" size="sm" onClick={loadNotifications} disabled={loading}>
             {loading ? <Loader2 className="mr-2 size-4 animate-spin" /> : <RefreshCw className="mr-2 size-4" />}
-            Refresh
+            Tải lại
           </Button>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
@@ -342,12 +342,12 @@ export function SentNotificationsPanel({ title = "Sent notifications", descripti
           {loading ? (
             <div className="flex items-center justify-center gap-2 py-10 text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
-              Loading sent notifications...
+              Đang tải thông báo đã gửi...
             </div>
           ) : groupedNotifications.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-10 text-center text-muted-foreground">
               <Send className="size-10 opacity-50" />
-              <p className="text-sm">No sent notifications yet.</p>
+              <p className="text-sm">Chưa có thông báo đã gửi.</p>
             </div>
           ) : (
             groupedNotifications.map((notification) => (
@@ -355,14 +355,14 @@ export function SentNotificationsPanel({ title = "Sent notifications", descripti
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <div className="mb-1 flex flex-wrap items-center gap-2">
-                      <p className="font-medium text-card-foreground">{notification.title || "Notification"}</p>
+                      <p className="font-medium text-card-foreground">{notification.title || "Thông báo"}</p>
                       {notification.type && <Badge variant="outline">{notification.type}</Badge>}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      To: {getRecipientLabel(notification)}
+                      Đến: {getRecipientLabel(notification)}
                     </p>
                     <p className="mt-2 line-clamp-2 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                      {notification.content || "No content"}
+                      {notification.content || "Chưa có nội dung"}
                     </p>
                     <p className="mt-2 text-xs text-muted-foreground">{formatDateTime(notification.createdAt)}</p>
                   </div>
@@ -377,7 +377,7 @@ export function SentNotificationsPanel({ title = "Sent notifications", descripti
                     ) : (
                       <Eye className="mr-2 size-4" />
                     )}
-                    View
+                    Xem
                   </Button>
                 </div>
               </div>
@@ -396,33 +396,33 @@ function NotificationDetailDialog({ notification, onOpenChange }) {
     <Dialog open={!!notification} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{notification?.title || "Notification detail"}</DialogTitle>
+          <DialogTitle>{notification?.title || "Chi tiết thông báo"}</DialogTitle>
           <DialogDescription>{notification?.id}</DialogDescription>
         </DialogHeader>
         {notification && (
           <div className="grid gap-4 text-sm">
             <div className="grid gap-3 rounded-md border border-border bg-muted/30 p-3 sm:grid-cols-2">
               <div>
-                <p className="text-muted-foreground">From</p>
-                <p className="font-medium text-card-foreground">{notification.senderName || notification.senderId || "System"}</p>
+                <p className="text-muted-foreground">Từ</p>
+                <p className="font-medium text-card-foreground">{notification.senderName || notification.senderId || "Hệ thống"}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">To</p>
+                <p className="text-muted-foreground">Đến</p>
                 <p className="font-medium text-card-foreground">{getRecipientLabel(notification)}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">Type</p>
+                <p className="text-muted-foreground">Loại</p>
                 <p className="font-medium text-card-foreground">{notification.type || "-"}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">Sent at</p>
+                <p className="text-muted-foreground">Thời gian gửi</p>
                 <p className="font-medium text-card-foreground">{formatDateTime(notification.createdAt) || "-"}</p>
               </div>
             </div>
             <div>
-              <p className="mb-2 text-muted-foreground">Content</p>
+              <p className="mb-2 text-muted-foreground">Nội dung</p>
               <p className="whitespace-pre-wrap rounded-md border border-border bg-background p-3 leading-relaxed text-card-foreground">
-                {notification.content || "No content"}
+                {notification.content || "Chưa có nội dung"}
               </p>
             </div>
           </div>

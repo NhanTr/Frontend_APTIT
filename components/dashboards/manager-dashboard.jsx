@@ -34,27 +34,43 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea"
 
 const statusMeta = {
-  draft: { label: "Draft", className: "bg-muted text-muted-foreground border-border" },
-  pending: { label: "Pending", className: "bg-warning/10 text-warning border-warning/20" },
+  draft: { label: "Bản nháp", className: "bg-muted text-muted-foreground border-border" },
+  pending: { label: "Chờ duyệt", className: "bg-warning/10 text-warning border-warning/20" },
   reviewing: { label: "Đang duyệt", className: "bg-primary/10 text-primary border-primary/20" },
-  cancellationrequested: { label: "Cancel requested", className: "bg-warning/10 text-warning border-warning/20" },
-  approved: { label: "Approved", className: "bg-success/10 text-success border-success/20" },
-  ongoing: { label: "Ongoing", className: "bg-success/10 text-success border-success/20" },
-  closed: { label: "Closed", className: "bg-secondary text-secondary-foreground border-border" },
-  rejected: { label: "Rejected", className: "bg-destructive/10 text-destructive border-destructive/20" },
-  cancelled: { label: "Cancelled", className: "bg-destructive/10 text-destructive border-destructive/20" },
+  cancellationrequested: { label: "Yêu cầu hủy", className: "bg-warning/10 text-warning border-warning/20" },
+  approved: { label: "Đã duyệt", className: "bg-success/10 text-success border-success/20" },
+  ongoing: { label: "Đang diễn ra", className: "bg-success/10 text-success border-success/20" },
+  closed: { label: "Đã kết thúc", className: "bg-secondary text-secondary-foreground border-border" },
+  rejected: { label: "Đã từ chối", className: "bg-destructive/10 text-destructive border-destructive/20" },
+  cancelled: { label: "Đã hủy", className: "bg-destructive/10 text-destructive border-destructive/20" },
 }
 
 const reportMeta = {
-  pending: { label: "Pending", className: "bg-warning/10 text-warning border-warning/20" },
-  reviewing: { label: "Dang duyet", className: "bg-primary/10 text-primary border-primary/20" },
-  approved: { label: "Approved", className: "bg-success/10 text-success border-success/20" },
-  rejected: { label: "Rejected", className: "bg-destructive/10 text-destructive border-destructive/20" },
-  cancelled: { label: "Cancelled", className: "bg-muted text-muted-foreground border-border" },
+  pending: { label: "Chờ duyệt", className: "bg-warning/10 text-warning border-warning/20" },
+  reviewing: { label: "Đang duyệt", className: "bg-primary/10 text-primary border-primary/20" },
+  approved: { label: "Đã duyệt", className: "bg-success/10 text-success border-success/20" },
+  rejected: { label: "Đã từ chối", className: "bg-destructive/10 text-destructive border-destructive/20" },
+  cancelled: { label: "Đã hủy", className: "bg-muted text-muted-foreground border-border" },
 }
 
-const statusOptions = ["Draft", "Pending", "Reviewing", "CancellationRequested", "Approved", "Ongoing", "Closed", "Rejected", "Cancelled"]
-const reportStatusOptions = ["Pending", "Reviewing", "Approved", "Rejected", "Cancelled"]
+const statusOptions = [
+  { value: "Draft", label: "Bản nháp" },
+  { value: "Pending", label: "Chờ duyệt" },
+  { value: "Reviewing", label: "Đang duyệt" },
+  { value: "CancellationRequested", label: "Yêu cầu hủy" },
+  { value: "Approved", label: "Đã duyệt" },
+  { value: "Ongoing", label: "Đang diễn ra" },
+  { value: "Closed", label: "Đã kết thúc" },
+  { value: "Rejected", label: "Đã từ chối" },
+  { value: "Cancelled", label: "Đã hủy" },
+]
+const reportStatusOptions = [
+  { value: "Pending", label: "Chờ duyệt" },
+  { value: "Reviewing", label: "Đang duyệt" },
+  { value: "Approved", label: "Đã duyệt" },
+  { value: "Rejected", label: "Đã từ chối" },
+  { value: "Cancelled", label: "Đã hủy" },
+]
 const notificationRoleOptions = [
   { value: "all", label: "Tất cả vai trò", roleId: null },
   { value: "1", label: "admin", roleId: 1 },
@@ -68,7 +84,7 @@ function getStatusKey(value) {
 }
 
 function formatDateTime(value) {
-  if (!value) return "Not set"
+  if (!value) return "Chưa thiết lập"
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return String(value)
   return new Intl.DateTimeFormat("vi-VN", {
@@ -89,7 +105,7 @@ function getAttendedCount(activity) {
 
 function statusBadge(status) {
   const key = getStatusKey(status)
-  const meta = statusMeta[key] || { label: status || "Unknown", className: "bg-muted text-muted-foreground border-border" }
+  const meta = statusMeta[key] || { label: status || "Không rõ", className: "bg-muted text-muted-foreground border-border" }
   return (
     <Badge variant="outline" className={meta.className}>
       {meta.label}
@@ -99,7 +115,7 @@ function statusBadge(status) {
 
 function reportBadge(status) {
   const key = getStatusKey(status)
-  const meta = reportMeta[key] || { label: status || "Unknown", className: "bg-muted text-muted-foreground border-border" }
+  const meta = reportMeta[key] || { label: status || "Không rõ", className: "bg-muted text-muted-foreground border-border" }
   return (
     <Badge variant="outline" className={meta.className}>
       {meta.label}
@@ -109,10 +125,10 @@ function reportBadge(status) {
 
 function StatGrid({ data }) {
   const items = [
-    { label: "Activities", value: data.statistics?.totalActivities ?? data.activities.length, icon: CalendarDays },
-    { label: "Registered", value: data.statistics?.registeredStudents ?? 0, icon: Users },
-    { label: "Attended", value: data.statistics?.attendedStudents ?? 0, icon: Check },
-    { label: "Earned points", value: data.statistics?.totalEarnedPoints ?? 0, icon: FileText },
+    { label: "Hoạt động", value: data.statistics?.totalActivities ?? data.activities.length, icon: CalendarDays },
+    { label: "Đã đăng ký", value: data.statistics?.registeredStudents ?? 0, icon: Users },
+    { label: "Đã tham gia", value: data.statistics?.attendedStudents ?? 0, icon: Check },
+    { label: "Điểm đạt được", value: data.statistics?.totalEarnedPoints ?? 0, icon: FileText },
   ]
 
   return (
@@ -154,24 +170,24 @@ function ActivityFilters({ data }) {
 
   return (
     <form onSubmit={submit} className="grid gap-3 md:grid-cols-[1fr_180px_1fr_auto]">
-      <Input name="keyword" value={filters.keyword || ""} onChange={update} placeholder="Search title or description" />
+      <Input name="keyword" value={filters.keyword || ""} onChange={update} placeholder="Tìm theo tên hoặc mô tả" />
       <select
         name="status"
         value={filters.status || ""}
         onChange={update}
         className="h-9 rounded-md border border-input bg-background px-3 text-sm"
       >
-        <option value="">All statuses</option>
+        <option value="">Tất cả trạng thái</option>
         {statusOptions.map((status) => (
-          <option key={status} value={status}>
-            {status}
+          <option key={status.value} value={status.value}>
+            {status.label}
           </option>
         ))}
       </select>
-      <Input name="location" value={filters.location || ""} onChange={update} placeholder="Location" />
+      <Input name="location" value={filters.location || ""} onChange={update} placeholder="Địa điểm" />
       <Button type="submit" disabled={data.loading}>
         <Search className="mr-2 size-4" />
-        Search
+        Tìm kiếm
       </Button>
     </form>
   )
@@ -182,11 +198,11 @@ function ConflictList({ conflicts }) {
 
   return (
     <div className="rounded-md border border-warning/20 bg-warning/5 p-3 text-sm">
-      <p className="mb-2 font-medium text-card-foreground">Schedule warnings</p>
+      <p className="mb-2 font-medium text-card-foreground">Cảnh báo lịch</p>
       <div className="flex flex-col gap-2">
         {conflicts.map((conflict) => (
           <div key={`${conflict.activityId}-${conflict.startTime}`} className="text-muted-foreground">
-            {conflict.warning}: {conflict.title} at {conflict.location || "unknown location"} ({formatDateTime(conflict.startTime)})
+            {conflict.warning}: {conflict.title} tại {conflict.location || "địa điểm chưa rõ"} ({formatDateTime(conflict.startTime)})
           </div>
         ))}
       </div>
@@ -201,7 +217,7 @@ function ActivityRow({ activity, data, onViewDetails }) {
   const attended = getAttendedCount(activity)
 
   const rejectCancel = async () => {
-    const reason = window.prompt("Reason for rejecting cancellation")
+    const reason = window.prompt("Lý do từ chối yêu cầu hủy")
     if (!reason?.trim()) return
     await data.rejectCancelRequest(activity.id, reason.trim())
   }
@@ -215,7 +231,7 @@ function ActivityRow({ activity, data, onViewDetails }) {
               {statusBadge(activity.status)}
               {activity.trainingPoints != null && <Badge variant="outline">{activity.trainingPoints} điểm</Badge>}
             </div>
-            <h3 className="truncate text-base font-semibold text-card-foreground">{activity.title || "Untitled activity"}</h3>
+            <h3 className="truncate text-base font-semibold text-card-foreground">{activity.title || "Hoạt động chưa có tên"}</h3>
             <div className="mt-2 grid gap-2 text-sm text-muted-foreground md:grid-cols-3">
               <div className="flex items-center gap-2">
                 <CalendarDays className="size-4" />
@@ -223,7 +239,7 @@ function ActivityRow({ activity, data, onViewDetails }) {
               </div>
               <div className="flex items-center gap-2">
                 <MapPin className="size-4" />
-                <span className="truncate">{activity.location || "No location"}</span>
+                <span className="truncate">{activity.location || "Chưa có địa điểm"}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Users className="size-4" />
@@ -238,13 +254,13 @@ function ActivityRow({ activity, data, onViewDetails }) {
             </Button>
             <Button size="sm" variant="outline" onClick={() => data.loadScheduleConflicts(activity.id)} disabled={data.actionLoading}>
               <AlertCircle className="mr-1 size-4" />
-              Check schedule
+              Kiểm tra lịch
             </Button>
             {isCancellationRequested && (
               <>
                 <Button size="sm" onClick={() => data.approveCancelRequest(activity.id)} disabled={data.actionLoading}>
                   <Check className="mr-1 size-4" />
-                  Approve cancel
+                  Duyệt hủy
                 </Button>
                 <Button
                   size="sm"
@@ -254,7 +270,7 @@ function ActivityRow({ activity, data, onViewDetails }) {
                   disabled={data.actionLoading}
                 >
                   <X className="mr-1 size-4" />
-                  Keep activity
+                  Giữ hoạt động
                 </Button>
               </>
             )}
@@ -278,7 +294,7 @@ function ActivityRow({ activity, data, onViewDetails }) {
 
         {activity.cancelReason && (
           <p className="rounded-md border border-warning/20 bg-warning/5 px-3 py-2 text-sm text-muted-foreground">
-            Cancel reason: {activity.cancelReason}
+            Lý do hủy: {activity.cancelReason}
           </p>
         )}
 
@@ -306,7 +322,7 @@ function ActivityDetailPanel({ activity, data, onClose }) {
   const canCancelApproved = statusKey === "approved" || statusKey === "ongoing"
 
   const rejectActivity = async () => {
-    const reason = window.prompt("Reason for rejection")
+    const reason = window.prompt("Lý do từ chối")
     if (!reason?.trim()) return
     await data.rejectActivity(activity.id, reason.trim())
     onClose()
@@ -318,7 +334,7 @@ function ActivityDetailPanel({ activity, data, onClose }) {
   }
 
   const cancelApprovedActivity = async () => {
-    const reason = window.prompt("Reason for cancellation")
+    const reason = window.prompt("Lý do hủy")
     if (!reason?.trim()) return
     await data.cancelApprovedActivity(activity.id, reason.trim())
     onClose()
@@ -330,7 +346,7 @@ function ActivityDetailPanel({ activity, data, onClose }) {
         <DialogHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <DialogTitle>{activity.title || "Untitled activity"}</DialogTitle>
+              <DialogTitle>{activity.title || "Hoạt động chưa có tên"}</DialogTitle>
               <DialogDescription>
                 {activity.id} - {activity.organizerName}
               </DialogDescription>
@@ -343,56 +359,56 @@ function ActivityDetailPanel({ activity, data, onClose }) {
         <div className="grid gap-4">
         <div className="grid gap-3 text-sm md:grid-cols-2">
           <div>
-            <p className="text-muted-foreground">Location</p>
-            <p className="font-medium text-card-foreground">{activity.location || "No location"}</p>
+            <p className="text-muted-foreground">Địa điểm</p>
+            <p className="font-medium text-card-foreground">{activity.location || "Chưa có địa điểm"}</p>
           </div>
           <div>
-            <p className="text-muted-foreground">Schedule</p>
+            <p className="text-muted-foreground">Lịch diễn ra</p>
             <p className="font-medium text-card-foreground">
               {formatDateTime(activity.startTime)} - {formatDateTime(activity.endTime)}
             </p>
           </div>
           <div>
-            <p className="text-muted-foreground">Registration deadline</p>
+            <p className="text-muted-foreground">Hạn đăng ký</p>
             <p className="font-medium text-card-foreground">{formatDateTime(activity.registrationDeadline)}</p>
           </div>
           <div>
-            <p className="text-muted-foreground">Registration</p>
+            <p className="text-muted-foreground">Đăng ký</p>
             <p className="font-medium text-card-foreground">
               {activity.enrolled}/{activity.capacity || 0}
             </p>
           </div>
           <div>
-            <p className="text-muted-foreground">Participants</p>
+            <p className="text-muted-foreground">Sinh viên tham gia</p>
             <p className="font-medium text-card-foreground">{getAttendedCount(activity)}</p>
           </div>
           <div>
-            <p className="text-muted-foreground">Training points</p>
-            <p className="font-medium text-card-foreground">{activity.trainingPoints ?? "Not set"}</p>
+            <p className="text-muted-foreground">Điểm rèn luyện</p>
+            <p className="font-medium text-card-foreground">{activity.trainingPoints ?? "Chưa thiết lập"}</p>
           </div>
           <div>
-            <p className="text-muted-foreground">Sponsor</p>
-            <p className="font-medium text-card-foreground">{activity.sponsor || "Not set"}</p>
+            <p className="text-muted-foreground">Nhà tài trợ</p>
+            <p className="font-medium text-card-foreground">{activity.sponsor || "Chưa thiết lập"}</p>
           </div>
         </div>
 
         <div className="grid gap-2">
-          <p className="text-sm text-muted-foreground">Description</p>
+          <p className="text-sm text-muted-foreground">Mô tả</p>
           <p className="rounded-md border border-border bg-background p-3 text-sm text-card-foreground">
-            {activity.description || "No description"}
+            {activity.description || "Chưa có mô tả"}
           </p>
         </div>
 
         <div className="grid gap-2">
-          <p className="text-sm text-muted-foreground">Purpose</p>
+          <p className="text-sm text-muted-foreground">Mục đích</p>
           <p className="rounded-md border border-border bg-background p-3 text-sm text-card-foreground">
-            {activity.purpose || "No purpose"}
+            {activity.purpose || "Chưa có mục đích"}
           </p>
         </div>
 
         {activity.cancelReason && (
           <p className="rounded-md border border-warning/20 bg-warning/5 px-3 py-2 text-sm text-muted-foreground">
-            Cancel reason: {activity.cancelReason}
+            Lý do hủy: {activity.cancelReason}
           </p>
         )}
 
@@ -459,12 +475,12 @@ function ActivityApprovalTable({ data, mode = "all" }) {
         <CardHeader className="flex flex-col gap-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <CardTitle>{mode === "pending" ? "Activity approvals" : "All activities"}</CardTitle>
-              <CardDescription>Review lifecycle status, details, cancellation requests, and schedule conflicts.</CardDescription>
+              <CardTitle>{mode === "pending" ? "Duyệt hoạt động" : "Tất cả hoạt động"}</CardTitle>
+              <CardDescription>Theo dõi trạng thái, chi tiết, yêu cầu hủy và trùng lịch.</CardDescription>
             </div>
             <Button variant="outline" size="sm" onClick={data.refreshAll} disabled={data.loading || data.actionLoading}>
               <RefreshCw className="mr-2 size-4" />
-              Refresh
+              Tải lại
             </Button>
           </div>
           <ActivityFilters data={data} />
@@ -473,10 +489,10 @@ function ActivityApprovalTable({ data, mode = "all" }) {
           {data.loading ? (
             <div className="flex items-center justify-center gap-2 py-10 text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />
-              Loading activities...
+              Đang tải hoạt động...
             </div>
           ) : filteredActivities.length === 0 ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">No activities found.</div>
+            <div className="py-10 text-center text-sm text-muted-foreground">Không tìm thấy hoạt động.</div>
           ) : (
             filteredActivities.map((activity) => (
               <ActivityRow key={activity.id} activity={activity} data={data} onViewDetails={viewDetails} />
@@ -628,7 +644,7 @@ function ReportsPanel({ data }) {
   }
 
   const rejectReport = async (report) => {
-    const reason = window.prompt("Reason for rejecting report")
+    const reason = window.prompt("Lý do từ chối báo cáo")
     if (!reason?.trim()) return
     await data.rejectReport(report.id, reason.trim())
   }
@@ -656,32 +672,32 @@ function ReportsPanel({ data }) {
       <CardHeader className="flex flex-col gap-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle>Post-activity reports</CardTitle>
-            <CardDescription>Approve completed activity reports and lock official points.</CardDescription>
+            <CardTitle>Báo cáo sau hoạt động</CardTitle>
+            <CardDescription>Duyệt báo cáo sau hoạt động và chốt điểm chính thức.</CardDescription>
           </div>
           <Button variant="outline" size="sm" onClick={data.refreshAll} disabled={data.loading || data.actionLoading}>
             <RefreshCw className="mr-2 size-4" />
-            Refresh
+            Tải lại
           </Button>
         </div>
         <form onSubmit={submit} className="grid gap-3 md:grid-cols-[1fr_180px_auto]">
-          <Input name="activityId" value={filters.activityId || ""} onChange={update} placeholder="Activity ID" />
+          <Input name="activityId" value={filters.activityId || ""} onChange={update} placeholder="Mã hoạt động" />
           <select
             name="reportStatus"
             value={filters.reportStatus || ""}
             onChange={update}
             className="h-9 rounded-md border border-input bg-background px-3 text-sm"
           >
-            <option value="">All statuses</option>
+            <option value="">Tất cả trạng thái</option>
             {reportStatusOptions.map((status) => (
-              <option key={status} value={status}>
-                {status}
+              <option key={status.value} value={status.value}>
+                {status.label}
               </option>
             ))}
           </select>
           <Button type="submit" disabled={data.loading}>
             <Search className="mr-2 size-4" />
-            Search
+            Tìm kiếm
           </Button>
         </form>
       </CardHeader>
@@ -689,20 +705,20 @@ function ReportsPanel({ data }) {
         {data.loading ? (
           <div className="flex items-center justify-center gap-2 py-10 text-muted-foreground">
             <Loader2 className="size-4 animate-spin" />
-            Loading reports...
+            Đang tải báo cáo...
           </div>
         ) : data.reports.length === 0 ? (
-          <div className="py-10 text-center text-sm text-muted-foreground">No reports found.</div>
+          <div className="py-10 text-center text-sm text-muted-foreground">Không tìm thấy báo cáo.</div>
         ) : (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Report</TableHead>
-                  <TableHead>Activity</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Uploaded</TableHead>
-                  <TableHead className="w-48">Actions</TableHead>
+                  <TableHead>Báo cáo</TableHead>
+                  <TableHead>Hoạt động</TableHead>
+                  <TableHead>Trạng thái</TableHead>
+                  <TableHead>Đã tải lên</TableHead>
+                  <TableHead className="w-48">Thao tác</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -719,7 +735,7 @@ function ReportsPanel({ data }) {
                           <a className="font-medium text-primary underline-offset-4 hover:underline" href={report.fileUrl} target="_blank" rel="noreferrer">
                             {report.originalFileName || report.fileUrl || report.id}
                           </a>
-                          <span className="text-xs text-muted-foreground">{report.reviewNote || "No note"}</span>
+                          <span className="text-xs text-muted-foreground">{report.reviewNote || "Chưa có ghi chú"}</span>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -737,8 +753,8 @@ function ReportsPanel({ data }) {
                             variant="outline"
                             disabled={!canDownload || data.actionLoading}
                             onClick={() => downloadReport(report)}
-                            title="Tai bao cao"
-                            aria-label="Tai bao cao"
+                            title="Tải báo cáo"
+                            aria-label="Tải báo cáo"
                           >
                             <Download className="size-4" />
                           </Button>
@@ -746,8 +762,8 @@ function ReportsPanel({ data }) {
                             size="sm"
                             disabled={!canReviewDecision || data.actionLoading}
                             onClick={() => data.approveReport(report.id)}
-                            title="Duyet bao cao"
-                            aria-label="Duyet bao cao"
+                            title="Duyệt báo cáo"
+                            aria-label="Duyệt báo cáo"
                           >
                             <Check className="size-4" />
                           </Button>
@@ -757,8 +773,8 @@ function ReportsPanel({ data }) {
                             className="border-destructive text-destructive hover:bg-destructive/10"
                             disabled={!canReviewDecision || data.actionLoading}
                             onClick={() => rejectReport(report)}
-                            title="Tu choi bao cao"
-                            aria-label="Tu choi bao cao"
+                            title="Từ chối báo cáo"
+                            aria-label="Từ chối báo cáo"
                           >
                             <X className="size-4" />
                           </Button>
@@ -807,7 +823,7 @@ function NotificationPanel({ data }) {
   const submit = async (event) => {
     event.preventDefault()
     if (!form.title.trim() || !form.content.trim()) {
-      window.alert("Title and content are required.")
+      window.alert("Vui lòng nhập tiêu đề và nội dung.")
       return
     }
 
@@ -818,14 +834,14 @@ function NotificationPanel({ data }) {
 
     if (form.recipientMode === "manual") {
       if (userIds.length === 0) {
-        window.alert("Nhap it nhat mot user ID.")
+        window.alert("Nhập ít nhất một user ID.")
         return
       }
 
       await data.sendNotification({
         title: form.title.trim(),
         content: form.content.trim(),
-        type: "System",
+        type: "Hệ thống",
         userIds,
       })
     } else {
@@ -845,18 +861,18 @@ function NotificationPanel({ data }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Manual notification</CardTitle>
-        <CardDescription>Send a message by role filters or to typed user IDs.</CardDescription>
+        <CardTitle>Gửi thông báo thủ công</CardTitle>
+        <CardDescription>Gửi thông báo theo vai trò hoặc danh sách user ID nhập tay.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={submit} className="grid gap-4">
           <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
             <div className="grid gap-2">
-              <Label htmlFor="notify-title">Title</Label>
+              <Label htmlFor="notify-title">Tiêu đề</Label>
               <Input id="notify-title" name="title" value={form.title} onChange={update} />
             </div>
             <div className="grid gap-2">
-              <Label>Recipients</Label>
+              <Label>Người nhận</Label>
               <RadioGroup
                 value={form.recipientMode}
                 onValueChange={(value) => setForm((prev) => ({ ...prev, recipientMode: value }))}
@@ -864,11 +880,11 @@ function NotificationPanel({ data }) {
               >
                 <Label className="flex h-9 items-center gap-2 rounded-md border border-input px-3 text-sm font-normal">
                   <RadioGroupItem value="roles" />
-                  Vai tro
+                  Vai trò
                 </Label>
                 <Label className="flex h-9 items-center gap-2 rounded-md border border-input px-3 text-sm font-normal">
                   <RadioGroupItem value="manual" />
-                  Tu nhap
+                  Tự nhập
                 </Label>
               </RadioGroup>
             </div>
@@ -876,7 +892,7 @@ function NotificationPanel({ data }) {
           {form.recipientMode === "roles" ? (
             <div className="grid gap-4 md:grid-cols-3">
               <div className="grid gap-2">
-                <Label htmlFor="notify-role">Vai tro nhan</Label>
+                <Label htmlFor="notify-role">Vai trò nhận</Label>
                 <Select value={form.roleId} onValueChange={(value) => setForm((prev) => ({ ...prev, roleId: value }))}>
                   <SelectTrigger id="notify-role" className="w-full">
                     <SelectValue />
@@ -895,24 +911,24 @@ function NotificationPanel({ data }) {
                 <Input id="notify-department" name="department" value={form.department} onChange={update} placeholder="CNTT" />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="notify-class">Lop</Label>
+                <Label htmlFor="notify-class">Lớp</Label>
                 <Input id="notify-class" name="className" value={form.className} onChange={update} placeholder="D20CQCN01-B" />
               </div>
             </div>
           ) : (
             <div className="grid gap-2">
-              <Label htmlFor="notify-users">Recipient user IDs</Label>
+              <Label htmlFor="notify-users">ID người nhận</Label>
               <Input id="notify-users" name="userIds" value={form.userIds} onChange={update} placeholder="id1, id2, id3" />
             </div>
           )}
           <div className="flex flex-col gap-2">
-            <Label htmlFor="notify-content">Content</Label>
+            <Label htmlFor="notify-content">Nội dung</Label>
             <Textarea id="notify-content" name="content" rows={3} value={form.content} onChange={update} />
           </div>
           <div className="flex justify-end">
             <Button type="submit" disabled={data.actionLoading}>
               {data.actionLoading ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Bell className="mr-2 size-4" />}
-              Send
+              Gửi
             </Button>
           </div>
         </form>
@@ -932,19 +948,19 @@ function ManagerOverview({ data }) {
       <div className="grid gap-3 md:grid-cols-3">
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Pending approvals</p>
+            <p className="text-sm text-muted-foreground">Hoạt động chờ duyệt</p>
             <p className="text-2xl font-semibold">{pendingCount}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Cancel requests</p>
+            <p className="text-sm text-muted-foreground">Yêu cầu hủy</p>
             <p className="text-2xl font-semibold">{reviewingCount}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Pending reports</p>
+            <p className="text-sm text-muted-foreground">Báo cáo chờ duyệt</p>
             <p className="text-2xl font-semibold">{pendingReports}</p>
           </CardContent>
         </Card>

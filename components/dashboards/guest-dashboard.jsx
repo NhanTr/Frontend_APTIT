@@ -79,7 +79,7 @@ function BrowseActivitiesGuest({ activities, currentPage, hasMore, onLoadMore, l
                       <div className="flex items-center justify-between text-xs mb-1">
                         <span className="text-muted-foreground">Spots</span>
                         <span className="font-medium text-card-foreground">
-                          {activity.capacity - activity.enrolled} left
+                          Còn {activity.capacity - activity.enrolled} chỗ
                         </span>
                       </div>
                       <Progress value={(activity.enrolled / activity.capacity) * 100} className="h-1.5" />

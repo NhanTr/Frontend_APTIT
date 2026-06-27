@@ -17,7 +17,7 @@ import {
 } from "lucide-react"
 
 function formatDateTime(value) {
-  if (!value) return "Chua co"
+  if (!value) return "Chưa có"
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return String(value)
   return new Intl.DateTimeFormat("vi-VN", {
@@ -32,7 +32,7 @@ function DetailItem({ icon: Icon, label, value }) {
       <Icon className="mt-1 size-5 shrink-0 text-primary" />
       <div className="min-w-0">
         <p className="text-xs uppercase text-muted-foreground">{label}</p>
-        <p className="break-words text-sm font-medium text-card-foreground">{value || "Chua co"}</p>
+        <p className="break-words text-sm font-medium text-card-foreground">{value || "Chưa có"}</p>
       </div>
     </div>
   )
@@ -97,7 +97,7 @@ export function ActivityGrid({
           .map((activity) => {
             const isEnrolled = localEnrolled.includes(activity.id)
             const registrationStatus = String(registrationStatusByActivity[activity.id] || "").trim().toLowerCase()
-            const registrationLabel = registrationStatus === "approved" ? "Approved" : "Pending approval"
+            const registrationLabel = registrationStatus === "approved" ? "Đã duyệt" : "Chờ duyệt"
             const isFull = activity.enrolled >= activity.capacity
             const isClosed = isClosedActivity(activity)
             const isOngoing = isOngoingActivity(activity)
@@ -143,7 +143,7 @@ export function ActivityGrid({
                       <div className="flex items-center justify-between text-xs mb-1">
                         <span className="text-muted-foreground">Spots</span>
                         <span className="font-medium text-card-foreground">
-                          {activity.capacity - activity.enrolled} left
+                          Còn {activity.capacity - activity.enrolled} chỗ
                         </span>
                       </div>
                       <Progress value={(activity.enrolled / activity.capacity) * 100} className="h-1.5" />
@@ -164,7 +164,7 @@ export function ActivityGrid({
                               handleUnenroll(activity.id)
                             }}
                           >
-                            {unenrollingActivityIds.includes(activity.id) ? "Unenrolling..." : "Cancel registration"}
+                            {unenrollingActivityIds.includes(activity.id) ? "Đang hủy..." : "Hủy đăng ký"}
                           </Button>
                         )}
                       </div>
@@ -178,7 +178,7 @@ export function ActivityGrid({
                       </Button>
                     ) : isFull ? (
                       <Button variant="outline" size="sm" className="w-full mt-1" disabled>
-                        Full
+                        Đã đầy
                       </Button>
                     ) : canEnrollActivity(activity) ? (
                       <Button
@@ -190,7 +190,7 @@ export function ActivityGrid({
                           handleEnroll(activity.id)
                         }}
                       >
-                        {enrollingActivityIds.includes(activity.id) ? "Enrolling..." : "Enroll Now"}
+                        {enrollingActivityIds.includes(activity.id) ? "Đang đăng ký..." : "Đăng ký ngay"}
                       </Button>
                     ) : (
                       <Button variant="outline" size="sm" className="w-full mt-1" disabled>
@@ -223,22 +223,22 @@ export function ActivityGrid({
               <div className="flex flex-col gap-4">
                 {/* Activity Info */}
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <DetailItem icon={Clock} label="Bat dau" value={formatDateTime(selectedActivity.startTime)} />
-                  <DetailItem icon={Clock} label="Ket thuc" value={formatDateTime(selectedActivity.endTime)} />
-                  <DetailItem icon={Calendar} label="Han dang ky" value={formatDateTime(selectedActivity.registrationDeadline)} />
+                  <DetailItem icon={Clock} label="Bắt đầu" value={formatDateTime(selectedActivity.startTime)} />
+                  <DetailItem icon={Clock} label="Kết thúc" value={formatDateTime(selectedActivity.endTime)} />
+                  <DetailItem icon={Calendar} label="Hạn đăng ký" value={formatDateTime(selectedActivity.registrationDeadline)} />
                   <DetailItem
                     icon={MapPin}
-                    label="Phong hoc"
+                    label="Phòng học"
                     value={selectedActivity.roomCode || selectedActivity.location}
                   />
                   <DetailItem
                     icon={Users}
-                    label="Don vi to chuc"
+                    label="Đơn vị tổ chức"
                     value={selectedActivity.organizerName || selectedActivity.instructor || selectedActivity.organizerId}
                   />
-                  <DetailItem icon={Users} label="Don vi tai tro" value={selectedActivity.sponsor || "Chua co"} />
-                  <DetailItem icon={Users} label="Doi tuong tham gia" value={selectedActivity.targetAudience} />
-                  <DetailItem icon={Award} label="Diem ren luyen" value={`${selectedActivity.trainingPoints ?? 0} diem`} />
+                  <DetailItem icon={Users} label="Đơn vị tài trợ" value={selectedActivity.sponsor || "Chưa có"} />
+                  <DetailItem icon={Users} label="Đối tượng tham gia" value={selectedActivity.targetAudience} />
+                  <DetailItem icon={Award} label="Điểm rèn luyện" value={`${selectedActivity.trainingPoints ?? 0} điểm`} />
                 </div>
 
                 <div className="grid gap-3">
@@ -248,7 +248,7 @@ export function ActivityGrid({
                       Mo ta
                     </div>
                     <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                      {selectedActivity.description || "Chua co mo ta"}
+                      {selectedActivity.description || "Chưa có mô tả"}
                     </p>
                   </div>
 
@@ -258,7 +258,7 @@ export function ActivityGrid({
                       Muc dich
                     </div>
                     <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                      {selectedActivity.purpose || "Chua co muc dich"}
+                      {selectedActivity.purpose || "Chưa có mục đích"}
                     </p>
                   </div>
                 </div>
@@ -266,7 +266,7 @@ export function ActivityGrid({
                 {/* Capacity Info */}
                 <div className="bg-secondary/30 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-card-foreground">Enrollment Status</span>
+                    <span className="text-sm font-medium text-card-foreground">Tình trạng đăng ký</span>
                     <span className="text-sm font-medium text-card-foreground">
                       {selectedActivity.enrolled} / {selectedActivity.capacity}
                     </span>
@@ -276,7 +276,7 @@ export function ActivityGrid({
                     className="h-2"
                   />
                   <p className="text-xs text-muted-foreground mt-2">
-                    {selectedActivity.capacity - selectedActivity.enrolled} spots remaining
+                    Còn {selectedActivity.capacity - selectedActivity.enrolled} chỗ
                   </p>
                 </div>
 
@@ -290,8 +290,8 @@ export function ActivityGrid({
                           : isOngoingActivity(selectedActivity)
                             ? "Đang diễn ra"
                             : String(registrationStatusByActivity[selectedActivity.id] || "").trim().toLowerCase() === "approved"
-                              ? "Registration approved"
-                              : "Waiting for organizer approval"}
+                              ? "Đăng ký đã duyệt"
+                              : "Đang chờ ban tổ chức duyệt"}
                       </div>
                       {canCancelRegistration(selectedActivity) && (
                         <Button
@@ -303,8 +303,8 @@ export function ActivityGrid({
                           }}
                         >
                           {unenrollingActivityIds.includes(selectedActivity.id)
-                            ? "Unenrolling..."
-                            : "Cancel registration"}
+                            ? "Đang hủy..."
+                            : "Hủy đăng ký"}
                         </Button>
                       )}
                     </div>
@@ -318,7 +318,7 @@ export function ActivityGrid({
                     </Button>
                   ) : selectedActivity.enrolled >= selectedActivity.capacity ? (
                     <Button disabled className="flex-1">
-                      Activity Full
+                      Hoạt động đã đầy
                     </Button>
                   ) : canEnrollActivity(selectedActivity) ? (
                     <Button
@@ -329,7 +329,7 @@ export function ActivityGrid({
                         setSelectedActivity(null)
                       }}
                     >
-                      {enrollingActivityIds.includes(selectedActivity.id) ? "Enrolling..." : "Enroll Now"}
+                      {enrollingActivityIds.includes(selectedActivity.id) ? "Đang đăng ký..." : "Đăng ký ngay"}
                     </Button>
                   ) : (
                     <Button disabled className="flex-1">

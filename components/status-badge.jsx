@@ -37,9 +37,18 @@ export function StatusBadge({ status }) {
 }
 
 export function CategoryBadge({ category }) {
+  const categoryLabels = {
+    sports: "Thể thao",
+    academic: "Học thuật",
+    cultural: "Văn hóa",
+    technology: "Công nghệ",
+    community: "Cộng đồng",
+    event: "Sự kiện",
+  }
+
   return (
     <Badge variant="outline" className={cn("capitalize", categoryStyles[category])}>
-      {category}
+      {categoryLabels[category] || category}
     </Badge>
   )
 }

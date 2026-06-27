@@ -43,7 +43,7 @@ export function LoginForm({ onLoginSuccess }) {
         </div>
         <div>
           <h1 className="text-lg sm:text-xl font-semibold text-foreground">EduActivity</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">Student Management</p>
+          <p className="text-xs sm:text-sm text-muted-foreground">Quản lý hoạt động sinh viên</p>
         </div>
       </header>
 
@@ -51,8 +51,8 @@ export function LoginForm({ onLoginSuccess }) {
       <main className="flex flex-1 flex-col items-center justify-center px-4 pb-8">
         <Card className="w-full max-w-md border-border">
           <CardHeader className="pb-6">
-            <CardTitle className="text-2xl sm:text-3xl text-card-foreground">Welcome</CardTitle>
-            <CardDescription className="text-sm">Sign in to your account to continue</CardDescription>
+            <CardTitle className="text-2xl sm:text-3xl text-card-foreground">Chào mừng</CardTitle>
+            <CardDescription className="text-sm">Đăng nhập vào tài khoản để tiếp tục</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="flex flex-col gap-4">
@@ -123,7 +123,7 @@ export function LoginForm({ onLoginSuccess }) {
 
       {/* Footer */}
       <footer className="p-4 text-center text-xs text-muted-foreground">
-        2024 EduActivity Manager. All rights reserved.
+        2024 EduActivity. Đã đăng ký bản quyền.
       </footer>
     </div>
   )

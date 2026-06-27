@@ -14,7 +14,7 @@ export function DashboardHeader({ title, subtitle, onMenuClick, onLoginClick, is
           size="icon"
           className="size-9 text-muted-foreground hover:text-foreground md:hidden"
           onClick={onMenuClick}
-          aria-label="Open menu"
+          aria-label="Mở menu"
         >
           <Menu className="size-5" />
         </Button>
@@ -27,7 +27,7 @@ export function DashboardHeader({ title, subtitle, onMenuClick, onLoginClick, is
         <div className="relative hidden lg:block">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search..."
+            placeholder="Tìm kiếm..."
             className="w-64 pl-9 bg-secondary border-border text-secondary-foreground placeholder:text-muted-foreground"
           />
         </div>
@@ -38,7 +38,7 @@ export function DashboardHeader({ title, subtitle, onMenuClick, onLoginClick, is
             className="flex gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
           >
             <LogOut className="size-4" />
-            Sign out
+            Đăng xuất
           </Button>
         ) : onLoginClick ? (
           <Button
@@ -47,7 +47,7 @@ export function DashboardHeader({ title, subtitle, onMenuClick, onLoginClick, is
             className="flex gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
           >
             <LogIn className="size-4" />
-            Sign in
+            Đăng nhập
           </Button>
         ) : null}
       </div>

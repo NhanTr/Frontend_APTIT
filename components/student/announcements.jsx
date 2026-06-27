@@ -3,8 +3,8 @@ import { NotificationsPanel } from "@/components/notifications/notifications-pan
 export function StudentAnnouncements() {
   return (
     <NotificationsPanel
-      title="Announcements"
-      description="Latest news and updates from your institution"
+      title="Thông báo"
+      description="Tin tức và cập nhật mới nhất từ nhà trường"
     />
   )
 }

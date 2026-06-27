@@ -12,10 +12,38 @@ import { StudentDashboard } from "@/components/dashboards/student-dashboard"
 import { ManagerDashboard } from "@/components/dashboards/manager-dashboard"
 
 const dashboardConfig = {
-  admin: { title: "Admin Dashboard", subtitle: "Manage user accounts and system settings", component: AdminDashboard, defaultSection: "dashboard" },
-  manager: { title: "Manager Dashboard", subtitle: "Review activities and reports", component: ManagerDashboard, defaultSection: "dashboard" },
-  organizer: { title: "Bảng điều khiển Organizer", subtitle: "Quản lý hoạt động, sinh viên và điểm danh", component: OrganizerDashboard, defaultSection: "dashboard" },
-  student: { title: "Student Dashboard", subtitle: "Browse activities and manage enrollments", component: StudentDashboard, defaultSection: "browse-activities" },
+  admin: { title: "Bảng điều khiển quản trị", subtitle: "Quản lý tài khoản người dùng và cấu hình hệ thống", component: AdminDashboard, defaultSection: "dashboard" },
+  manager: { title: "Bảng điều khiển quản lý", subtitle: "Duyệt hoạt động và báo cáo", component: ManagerDashboard, defaultSection: "dashboard" },
+  organizer: { title: "Bảng điều khiển ban tổ chức", subtitle: "Quản lý hoạt động, sinh viên và điểm danh", component: OrganizerDashboard, defaultSection: "dashboard" },
+  student: { title: "Bảng điều khiển sinh viên", subtitle: "Xem hoạt động và quản lý đăng ký", component: StudentDashboard, defaultSection: "browse-activities" },
+}
+
+const validSectionsByRole = {
+  admin: ["dashboard", "users", "manage-notifications", "notifications", "settings", "personal-profile"],
+  manager: ["dashboard", "activity-approvals", "student-statistics", "reports", "manage-notifications", "notifications", "personal-profile"],
+  organizer: ["dashboard", "my-activities", "create-activity", "my-students", "attendance", "reports-points", "notifications", "personal-profile"],
+  student: ["browse-activities", "my-enrollments", "my-points", "announcements", "personal-profile"],
+}
+
+const legacySectionAliases = {
+  "tổng-quan": "dashboard",
+  "xem-hoạt-động": "browse-activities",
+  "người-dùng": "users",
+  "cài-đặt": "settings",
+  "hồ-sơ-cá-nhân": "personal-profile",
+  "duyệt-hoạt-động": "activity-approvals",
+  "báo-cáo": "reports",
+  "đăng-ký-của-tôi": "my-enrollments",
+  "thông-báo": "notifications",
+}
+
+function normalizeSectionForRole(role, section) {
+  const defaultSection = dashboardConfig[role]?.defaultSection || "dashboard"
+  const normalized = section?.toLowerCase?.() || defaultSection
+  const roleAlias = role === "student" && normalized === "thông-báo" ? "announcements" : null
+  const aliased = roleAlias || legacySectionAliases[normalized] || normalized
+  const validSections = validSectionsByRole[role] || []
+  return validSections.includes(aliased) ? aliased : defaultSection
 }
 
 function AppContent() {
@@ -31,7 +59,7 @@ function AppContent() {
     if (isAuthenticated && user) {
       const config = dashboardConfig[user.role]
       const sectionFromUrl = searchParams.get("section")
-      setActiveMenu(sectionFromUrl || config?.defaultSection || "dashboard")
+      setActiveMenu(normalizeSectionForRole(user.role, sectionFromUrl || config?.defaultSection))
     }
   }, [isAuthenticated, user, searchParams])
 
@@ -45,7 +73,7 @@ function AppContent() {
     if (loading || !isAuthenticated || !user) return
 
     const params = new URLSearchParams(searchParams.toString())
-    const nextSection = activeMenu || dashboardConfig[user.role]?.defaultSection || "dashboard"
+    const nextSection = normalizeSectionForRole(user.role, activeMenu)
 
     params.set("role", user.role)
     params.set("section", nextSection)
