@@ -922,21 +922,27 @@ function StudentsPanelV2({ data }) {
     () => Object.fromEntries(data.activities.map((activity) => [activity.id, activity])),
     [data.activities],
   )
-  const withActivityTitle = (registration) => ({
+  const selectedActivity = data.activities.find((activity) => activity.id === selectedActivityId)
+  const withActivityTitle = (registration, fallbackActivity) => ({
     ...registration,
-    activityTitle: activityById[registration.activityId]?.title || registration.activityId || "Chưa có",
+    activityId: registration.activityId || fallbackActivity?.id || selectedActivityId,
+    activityTitle:
+      activityById[registration.activityId]?.title ||
+      fallbackActivity?.title ||
+      registration.activityId ||
+      "Chưa có",
   })
   const registrations = isAllActivities
     ? data.activities.flatMap((activity) =>
-        (data.registrationsByActivity[activity.id] || []).map((registration) => ({
-          ...registration,
-          activityTitle: activity.title || registration.activityId,
-        })),
+        (data.registrationsByActivity[activity.id] || []).map((registration) =>
+          withActivityTitle(registration, activity),
+        ),
       )
     : selectedActivityId
-      ? (data.registrationsByActivity[selectedActivityId] || []).map(withActivityTitle)
+      ? (data.registrationsByActivity[selectedActivityId] || []).map((registration) =>
+          withActivityTitle(registration, selectedActivity),
+        )
       : []
-  const selectedActivity = data.activities.find((activity) => activity.id === selectedActivityId)
   const loadRegistrations = data.loadRegistrations
 
   const pendingRegistrations = registrations.filter((registration) => {
@@ -947,19 +953,20 @@ function StudentsPanelV2({ data }) {
   const rejectedRegistrations = registrations.filter((registration) => getStatusKey(registration.status) === "rejected")
 
   useEffect(() => {
-    if (isAllActivities) {
-      data.activities.forEach((activity) => {
-        if (!data.registrationsByActivity[activity.id]) {
-          loadRegistrations(activity.id)
-        }
-      })
-      return
-    }
-
-    if (selectedActivityId) {
+    if (!isAllActivities && selectedActivityId) {
       loadRegistrations(selectedActivityId)
     }
-  }, [data.activities, data.registrationsByActivity, isAllActivities, loadRegistrations, selectedActivityId])
+  }, [isAllActivities, loadRegistrations, selectedActivityId])
+
+  useEffect(() => {
+    if (!isAllActivities) return
+
+    data.activities.forEach((activity) => {
+      if (!data.registrationsByActivity[activity.id]) {
+        loadRegistrations(activity.id)
+      }
+    })
+  }, [data.activities, isAllActivities, loadRegistrations])
 
   const reject = async (registration) => {
     const reason = window.prompt("Nhập lý do từ chối đăng ký")
@@ -987,7 +994,12 @@ function StudentsPanelV2({ data }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {items.map((registration) => (
+            {items.map((registration) => {
+              const activity = activityById[registration.activityId]
+              const isActivityEnded = isEndedActivity(activity)
+              const actionDisabled = data.actionLoading || isActivityEnded
+
+              return (
               <TableRow key={registration.id}>
                 <TableCell className="font-medium">{registration.studentId}</TableCell>
                 {showActivity && (
@@ -1008,7 +1020,8 @@ function StudentsPanelV2({ data }) {
                     <div className="flex gap-2">
                       <Button
                         size="sm"
-                        disabled={data.actionLoading}
+                        disabled={actionDisabled}
+                        title={isActivityEnded ? "Hoạt động đã kết thúc" : "Duyệt đăng ký"}
                         onClick={() => data.approveRegistration(registration.activityId, registration.studentId)}
                       >
                         <CheckCircle2 className="size-4" />
@@ -1017,7 +1030,8 @@ function StudentsPanelV2({ data }) {
                         size="sm"
                         variant="outline"
                         className="border-destructive text-destructive hover:bg-destructive/10"
-                        disabled={data.actionLoading}
+                        disabled={actionDisabled}
+                        title={isActivityEnded ? "Hoạt động đã kết thúc" : "Từ chối đăng ký"}
                         onClick={() => reject(registration)}
                       >
                         <XCircle className="size-4" />
@@ -1026,7 +1040,8 @@ function StudentsPanelV2({ data }) {
                   </TableCell>
                 )}
               </TableRow>
-            ))}
+              )
+            })}
           </TableBody>
         </Table>
       </div>
@@ -1105,7 +1120,7 @@ function StudentsPanelV2({ data }) {
               <CardTitle>Danh sách chờ duyệt</CardTitle>
               <CardDescription>Sinh viên mới đăng ký, cần BTC/CLB duyệt hoặc từ chối.</CardDescription>
             </CardHeader>
-            <CardContent>{renderRegistrationTable(pendingRegistrations, { showActions: true })}</CardContent>
+            <CardContent>{renderRegistrationTable(pendingRegistrations, { showActions: true, showActivity: true })}</CardContent>
           </Card>
 
           <Card>

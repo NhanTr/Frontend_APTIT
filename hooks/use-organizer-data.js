@@ -225,7 +225,10 @@ export function useOrganizerData() {
       setError(null)
       try {
         const data = await requestJson(`/api/registrations/${activityId}`)
-        const registrations = Array.isArray(data) ? data : []
+        const registrations = (Array.isArray(data) ? data : []).map((registration) => ({
+          ...registration,
+          activityId: registration.activityId || activityId,
+        }))
         setRegistrationsByActivity((prev) => ({
           ...prev,
           [activityId]: registrations,
