@@ -48,7 +48,7 @@ export function ActivityFilter({ onFilterChange = () => {}, initialFilters = emp
   }, [initialFilters])
 
   const statusOptions = [
-    { value: "draft", label: "Draft" },
+    { value: "draft", label: "Bản nháp" },
     { value: "approved", label: "Approved" },
     { value: "cancelled", label: "Cancelled" },
     { value: "completed", label: "Completed" },
@@ -82,7 +82,7 @@ export function ActivityFilter({ onFilterChange = () => {}, initialFilters = emp
         <div className="space-y-4">
           {/* Header */}
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-card-foreground">Filter Activities</h3>
+            <h3 className="text-sm font-semibold text-card-foreground">Lọc hoạt động</h3>
             {hasActiveFilters && (
               <Button
                 variant="ghost"
@@ -91,7 +91,7 @@ export function ActivityFilter({ onFilterChange = () => {}, initialFilters = emp
                 className="h-8 px-2 text-xs"
               >
                 <X className="size-3 mr-1" />
-                Clear All
+                Xóa tất cả
               </Button>
             )}
           </div>
@@ -101,11 +101,11 @@ export function ActivityFilter({ onFilterChange = () => {}, initialFilters = emp
             {/* Status Filter */}
             <div className="space-y-2">
               <Label htmlFor="status-filter" className="text-xs font-medium text-muted-foreground uppercase">
-                Status
+                Trạng thái
               </Label>
               <Select value={filters.status} onValueChange={(value) => handleFilterChange("status", value)}>
                 <SelectTrigger id="status-filter" className="h-9 text-sm">
-                  <SelectValue placeholder="All Status" />
+                  <SelectValue placeholder="Tất cả trạng thái" />
                 </SelectTrigger>
                 <SelectContent>
                   {statusOptions.map((option) => (
@@ -120,11 +120,11 @@ export function ActivityFilter({ onFilterChange = () => {}, initialFilters = emp
             {/* Sponsor Filter */}
             <div className="space-y-2">
               <Label htmlFor="sponsor-filter" className="text-xs font-medium text-muted-foreground uppercase">
-                Sponsor
+                Nhà tài trợ
               </Label>
               <Input
                 id="sponsor-filter"
-                placeholder="Search sponsor..."
+                placeholder="Tìm đơn vị tài trợ..."
                 value={filters.sponsor}
                 onChange={(e) => handleFilterChange("sponsor", e.target.value)}
                 className="h-9 text-sm"
@@ -134,7 +134,7 @@ export function ActivityFilter({ onFilterChange = () => {}, initialFilters = emp
             {/* Start Time Filter */}
             <div className="space-y-2">
               <Label htmlFor="start-time-filter" className="text-xs font-medium text-muted-foreground uppercase">
-                Start Time
+                Thời gian bắt đầu
               </Label>
               <Input
                 id="start-time-filter"
@@ -148,7 +148,7 @@ export function ActivityFilter({ onFilterChange = () => {}, initialFilters = emp
             {/* End Time Filter */}
             <div className="space-y-2">
               <Label htmlFor="end-time-filter" className="text-xs font-medium text-muted-foreground uppercase">
-                End Time
+                Thời gian kết thúc
               </Label>
               <Input
                 id="end-time-filter"
@@ -162,11 +162,11 @@ export function ActivityFilter({ onFilterChange = () => {}, initialFilters = emp
             {/* Location Filter */}
             <div className="space-y-2">
               <Label htmlFor="location-filter" className="text-xs font-medium text-muted-foreground uppercase">
-                Location
+                Địa điểm
               </Label>
               <Input
                 id="location-filter"
-                placeholder="Search location..."
+                placeholder="Tìm địa điểm..."
                 value={filters.location}
                 onChange={(e) => handleFilterChange("location", e.target.value)}
                 className="h-9 text-sm"

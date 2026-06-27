@@ -6,8 +6,8 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata = {
-  title: 'EduActivity Manager - Student Activity Management',
-  description: 'A comprehensive platform for managing student activities, enrollments, and institutional operations across admin, organizer, and student roles.',
+  title: 'EduActivity - Quản lý hoạt động sinh viên',
+  description: 'Nền tảng quản lý hoạt động sinh viên, đăng ký và nghiệp vụ theo từng vai trò.',
   generator: 'v0.app',
   icons: {
     icon: [

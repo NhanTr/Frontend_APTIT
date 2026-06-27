@@ -8,22 +8,22 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Calendar, CheckCircle2, ChevronRight, Clock, GraduationCap, MapPin } from "lucide-react"
 
 const activityStatusMeta = {
-  draft: { label: "Draft", className: "bg-muted text-muted-foreground border-border" },
-  pending: { label: "Waiting activity approval", className: "bg-warning/10 text-warning border-warning/20" },
-  reviewing: { label: "Cancel request review", className: "bg-primary/10 text-primary border-primary/20" },
-  approved: { label: "Activity approved", className: "bg-success/10 text-success border-success/20" },
-  ongoing: { label: "Ongoing", className: "bg-success/10 text-success border-success/20" },
-  closed: { label: "Closed", className: "bg-secondary text-secondary-foreground border-border" },
-  completed: { label: "Closed", className: "bg-secondary text-secondary-foreground border-border" },
-  rejected: { label: "Activity rejected", className: "bg-destructive/10 text-destructive border-destructive/20" },
-  cancelled: { label: "Activity cancelled", className: "bg-destructive/10 text-destructive border-destructive/20" },
+  draft: { label: "Bản nháp", className: "bg-muted text-muted-foreground border-border" },
+  pending: { label: "Chờ duyệt hoạt động", className: "bg-warning/10 text-warning border-warning/20" },
+  reviewing: { label: "Đang duyệt yêu cầu hủy", className: "bg-primary/10 text-primary border-primary/20" },
+  approved: { label: "Hoạt động đã duyệt", className: "bg-success/10 text-success border-success/20" },
+  ongoing: { label: "Đang diễn ra", className: "bg-success/10 text-success border-success/20" },
+  closed: { label: "Đã kết thúc", className: "bg-secondary text-secondary-foreground border-border" },
+  completed: { label: "Đã kết thúc", className: "bg-secondary text-secondary-foreground border-border" },
+  rejected: { label: "Hoạt động bị từ chối", className: "bg-destructive/10 text-destructive border-destructive/20" },
+  cancelled: { label: "Hoạt động đã hủy", className: "bg-destructive/10 text-destructive border-destructive/20" },
 }
 
 const registrationStatusMeta = {
-  pending: { label: "Registration pending", className: "bg-warning/10 text-warning border-warning/20" },
-  approved: { label: "Registration approved", className: "bg-success/10 text-success border-success/20" },
-  rejected: { label: "Registration rejected", className: "bg-destructive/10 text-destructive border-destructive/20" },
-  cancelled: { label: "Registration cancelled", className: "bg-muted text-muted-foreground border-border" },
+  pending: { label: "Đăng ký chờ duyệt", className: "bg-warning/10 text-warning border-warning/20" },
+  approved: { label: "Đăng ký đã duyệt", className: "bg-success/10 text-success border-success/20" },
+  rejected: { label: "Đăng ký bị từ chối", className: "bg-destructive/10 text-destructive border-destructive/20" },
+  cancelled: { label: "Đăng ký đã hủy", className: "bg-muted text-muted-foreground border-border" },
 }
 
 function getStatusKey(status) {
@@ -44,35 +44,44 @@ function isActivityOngoing(activity) {
   return Number.isFinite(startTime) && startTime <= now && (!Number.isFinite(endTime) || endTime > now)
 }
 
+function isActivityClosed(activity) {
+  const endTime = activity.endTime ? new Date(activity.endTime).getTime() : null
+  return ["closed", "completed"].includes(getStatusKey(activity.status)) || (Number.isFinite(endTime) && endTime <= Date.now())
+}
+
+function canCancelRegistration(activity) {
+  return !isActivityOngoing(activity) && !isActivityClosed(activity)
+}
+
 function getCheckInMeta(registration) {
   if (registration?.checkInTime) {
-    return { label: "Checked in", className: "bg-success/10 text-success border-success/20" }
+    return { label: "Đã check-in", className: "bg-success/10 text-success border-success/20" }
   }
 
-  return { label: "Not checked in", className: "bg-muted text-muted-foreground border-border" }
+  return { label: "Chưa check-in", className: "bg-muted text-muted-foreground border-border" }
 }
 
 function getPresenceMeta(registration) {
   if (registration?.isPresent === true) {
-    return { label: "Present", className: "bg-success/10 text-success border-success/20" }
+    return { label: "Có mặt", className: "bg-success/10 text-success border-success/20" }
   }
 
   if (registration?.isPresent === false) {
-    return { label: "Not present", className: "bg-muted text-muted-foreground border-border" }
+    return { label: "Vắng mặt", className: "bg-muted text-muted-foreground border-border" }
   }
 
-  return { label: "Not confirmed", className: "bg-muted text-muted-foreground border-border" }
+  return { label: "Chưa xác nhận", className: "bg-muted text-muted-foreground border-border" }
 }
 
 function StatusGroup({ activity, registrationStatus, registration }) {
   const activityMeta =
     activityStatusMeta[getStatusKey(activity.status)] || {
-      label: activity.status || "Unknown activity status",
+      label: activity.status || "Không rõ trạng thái hoạt động",
       className: "bg-muted text-muted-foreground border-border",
     }
   const registrationMeta =
     registrationStatusMeta[getStatusKey(registrationStatus)] || {
-      label: "Registration pending",
+      label: "Đăng ký chờ duyệt",
       className: "bg-warning/10 text-warning border-warning/20",
     }
   const checkInMeta = getCheckInMeta(registration)
@@ -81,13 +90,13 @@ function StatusGroup({ activity, registrationStatus, registration }) {
   return (
     <div className="flex flex-wrap gap-2">
       <div className="flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1">
-        <span className="text-[11px] font-medium text-muted-foreground">Activity</span>
+        <span className="text-[11px] font-medium text-muted-foreground">Hoạt động</span>
         <Badge variant="outline" className={activityMeta.className}>
           {activityMeta.label}
         </Badge>
       </div>
       <div className="flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1">
-        <span className="text-[11px] font-medium text-muted-foreground">Registration</span>
+        <span className="text-[11px] font-medium text-muted-foreground">Đăng ký</span>
         <Badge variant="outline" className={registrationMeta.className}>
           {registrationMeta.label}
         </Badge>
@@ -102,7 +111,7 @@ function StatusGroup({ activity, registrationStatus, registration }) {
       )}
       {isApprovedRegistration(registrationStatus) && (
         <div className="flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1">
-          <span className="text-[11px] font-medium text-muted-foreground">Presence</span>
+          <span className="text-[11px] font-medium text-muted-foreground">Tham dự</span>
           <Badge variant="outline" className={presenceMeta.className}>
             {presenceMeta.label}
           </Badge>
@@ -158,8 +167,8 @@ export function MyEnrollments({
     <>
       <Card>
         <CardHeader>
-          <CardTitle className="text-card-foreground">My Enrollments</CardTitle>
-          <CardDescription>Track activity lifecycle and your registration approval separately</CardDescription>
+          <CardTitle className="text-card-foreground">Đăng ký của tôi</CardTitle>
+          <CardDescription>Theo dõi trạng thái hoạt động và trạng thái duyệt đăng ký riêng biệt</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {enrolledActivities.map((activity) => {
@@ -212,7 +221,7 @@ export function MyEnrollments({
                         onClick={() => handleCheckIn(registration.id)}
                       >
                         <CheckCircle2 className="mr-1 size-4" />
-                        {isCheckingIn ? "Checking in..." : "Check in"}
+                        {isCheckingIn ? "Đang check-in..." : "Check-in"}
                       </Button>
                     )}
                     <Button
@@ -233,8 +242,8 @@ export function MyEnrollments({
           {enrolledActivities.length === 0 && (
             <div className="flex flex-col items-center gap-2 py-8 text-center text-muted-foreground">
               <GraduationCap className="size-10 opacity-50" />
-              <p className="text-sm">You have not registered for any activities yet.</p>
-              <p className="text-xs">Use Dashboard to find an activity and request approval.</p>
+              <p className="text-sm">Bạn chưa đăng ký hoạt động nào.</p>
+              <p className="text-xs">Vào Tổng quan để tìm hoạt động và gửi yêu cầu duyệt.</p>
             </div>
           )}
         </CardContent>
@@ -246,7 +255,7 @@ export function MyEnrollments({
             <>
               <DialogHeader>
                 <DialogTitle className="text-card-foreground">{selectedActivity.title}</DialogTitle>
-                <DialogDescription>Enrollment details</DialogDescription>
+                <DialogDescription>Chi tiết đăng ký</DialogDescription>
               </DialogHeader>
 
               <div className="flex flex-col gap-4">
@@ -274,7 +283,7 @@ export function MyEnrollments({
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs font-medium text-muted-foreground">Location</span>
+                    <span className="text-xs font-medium text-muted-foreground">Địa điểm</span>
                     <div className="flex items-center gap-2">
                       <MapPin className="size-4 text-primary" />
                       <span className="text-sm text-card-foreground">{selectedActivity.location}</span>
@@ -283,9 +292,9 @@ export function MyEnrollments({
 
                   {selectedActivity.capacity && (
                     <div className="flex flex-col gap-1">
-                      <span className="text-xs font-medium text-muted-foreground">Capacity</span>
+                      <span className="text-xs font-medium text-muted-foreground">Sức chứa</span>
                       <p className="text-sm text-card-foreground">
-                        {selectedActivity.enrolled || 0} / {selectedActivity.capacity} registered
+                        {selectedActivity.enrolled || 0} / {selectedActivity.capacity} đã đăng ký
                       </p>
                     </div>
                   )}
@@ -293,14 +302,14 @@ export function MyEnrollments({
 
                 {selectedActivity.description && (
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs font-medium text-muted-foreground">Description</span>
+                    <span className="text-xs font-medium text-muted-foreground">Mô tả</span>
                     <p className="text-sm text-card-foreground">{selectedActivity.description}</p>
                   </div>
                 )}
 
                 {selectedActivity.organizer && (
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs font-medium text-muted-foreground">Organizer</span>
+                    <span className="text-xs font-medium text-muted-foreground">Ban tổ chức</span>
                     <p className="text-sm text-card-foreground">{selectedActivity.organizer}</p>
                   </div>
                 )}
@@ -313,19 +322,21 @@ export function MyEnrollments({
                       onClick={() => handleCheckIn(selectedRegistration.id)}
                     >
                       <CheckCircle2 className="mr-1 size-4" />
-                      {selectedIsCheckingIn ? "Checking in..." : "Check in"}
+                      {selectedIsCheckingIn ? "Đang check-in..." : "Check-in"}
                     </Button>
                   )}
                   <Button variant="outline" onClick={() => setSelectedActivity(null)}>
-                    Close
+                    Đóng
                   </Button>
-                  <Button
-                    variant="destructive"
-                    disabled={unenrollingActivityIds.includes(selectedActivity.id)}
-                    onClick={() => handleUnenroll(selectedActivity.id)}
-                  >
-                    {unenrollingActivityIds.includes(selectedActivity.id) ? "Cancelling..." : "Cancel registration"}
-                  </Button>
+                  {canCancelRegistration(selectedActivity) && (
+                    <Button
+                      variant="destructive"
+                      disabled={unenrollingActivityIds.includes(selectedActivity.id)}
+                      onClick={() => handleUnenroll(selectedActivity.id)}
+                    >
+                      {unenrollingActivityIds.includes(selectedActivity.id) ? "Đang hủy..." : "Hủy đăng ký"}
+                    </Button>
+                  )}
                 </div>
               </div>
             </>

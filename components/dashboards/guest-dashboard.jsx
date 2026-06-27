@@ -79,7 +79,7 @@ function BrowseActivitiesGuest({ activities, currentPage, hasMore, onLoadMore, l
                       <div className="flex items-center justify-between text-xs mb-1">
                         <span className="text-muted-foreground">Spots</span>
                         <span className="font-medium text-card-foreground">
-                          {activity.capacity - activity.enrolled} left
+                          Còn {activity.capacity - activity.enrolled} chỗ
                         </span>
                       </div>
                       <Progress value={(activity.enrolled / activity.capacity) * 100} className="h-1.5" />
@@ -267,8 +267,8 @@ export function GuestDashboard() {
     <div className="flex flex-col gap-4 sm:gap-6">
       <Card>
         <CardHeader>
-          <CardTitle className="text-card-foreground">Browse Activities</CardTitle>
-          <CardDescription>View all available activities and events</CardDescription>
+          <CardTitle className="text-card-foreground">Hoạt động</CardTitle>
+          <CardDescription>Danh sách các hoạt động đang diễn ra</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <ActivityFilter

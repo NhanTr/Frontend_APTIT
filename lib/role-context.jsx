@@ -94,16 +94,23 @@ export function RoleProvider({ children }) {
       location: backendActivity.location,
       capacity: backendActivity.maxParticipants ?? 0,
       enrolled: backendActivity.currentParticipants ?? 0,
-      instructor: backendActivity.sponsor || 'Unknown',
+      instructor: backendActivity.organizerName || backendActivity.organizerId || 'Unknown',
       instructorId: backendActivity.organizerId,
       // Additional backend fields
       startTime: backendActivity.startTime,
       endTime: backendActivity.endTime,
-      budget: backendActivity.budget,
+      registrationDeadline: backendActivity.registrationDeadline,
+      roomId: backendActivity.roomId,
+      roomCode: backendActivity.roomCode,
+      maxParticipants: backendActivity.maxParticipants,
+      currentParticipants: backendActivity.currentParticipants,
       sponsor: backendActivity.sponsor,
+      organizerName: backendActivity.organizerName,
       targetAudience: backendActivity.targetAudience,
       purpose: backendActivity.purpose,
-      trainingPoints: backendActivity.trainingPoints
+      trainingPoints: backendActivity.trainingPoints,
+      organizerId: backendActivity.organizerId,
+      reviewerId: backendActivity.reviewerId
     }
   }
 

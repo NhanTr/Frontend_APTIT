@@ -9,6 +9,7 @@ import {
   Users,
   UserCog,
   Bell,
+  Send,
   Settings,
   GraduationCap,
   BookOpen,
@@ -25,20 +26,21 @@ import { Separator } from "@/components/ui/separator"
 
 const navConfig = {
   admin: [
-    { label: "Dashboard", icon: <LayoutDashboard className="size-4" /> },
-    { label: "Activity Approvals", icon: <CalendarDays className="size-4" /> },
-    { label: "Users", icon: <Users className="size-4" /> },
-    { label: "Announcements", icon: <Bell className="size-4" /> },
-    { label: "Reports", icon: <FileText className="size-4" /> },
-    { label: "Statistics", icon: <BarChart3 className="size-4" /> },
-    { label: "Settings", icon: <Settings className="size-4" /> },
-    { label: "Personal Profile", icon: <UserCog className="size-4" /> },
+    { key: "dashboard", label: "Tổng quan", icon: <LayoutDashboard className="size-4" /> },
+    { key: "users", label: "Người dùng", icon: <Users className="size-4" /> },
+    { key: "manage-notifications", label: "Quản lý thông báo", icon: <Send className="size-4" /> },
+    { key: "notifications", label: "Thông báo", icon: <Bell className="size-4" /> },
+    { key: "settings", label: "Cài đặt", icon: <Settings className="size-4" /> },
+    { key: "personal-profile", label: "Hồ sơ cá nhân", icon: <UserCog className="size-4" /> },
   ],
   manager: [
-    { label: "Dashboard", icon: <LayoutDashboard className="size-4" /> },
-    { label: "Activity Approvals", icon: <CalendarDays className="size-4" /> },
-    { label: "Reports", icon: <FileText className="size-4" /> },
-    { label: "Personal Profile", icon: <UserCog className="size-4" /> },
+    { key: "dashboard", label: "Tổng quan", icon: <LayoutDashboard className="size-4" /> },
+    { key: "activity-approvals", label: "Duyệt hoạt động", icon: <CalendarDays className="size-4" /> },
+    { key: "student-statistics", label: "Thống kê sinh viên", icon: <BarChart3 className="size-4" /> },
+    { key: "reports", label: "Báo cáo", icon: <FileText className="size-4" /> },
+    { key: "manage-notifications", label: "Quản lý thông báo", icon: <Send className="size-4" /> },
+    { key: "notifications", label: "Thông báo", icon: <Bell className="size-4" /> },
+    { key: "personal-profile", label: "Hồ sơ cá nhân", icon: <UserCog className="size-4" /> },
   ],
   organizer: [
     { key: "dashboard", label: "Tổng quan", icon: <LayoutDashboard className="size-4" /> },
@@ -46,18 +48,19 @@ const navConfig = {
     { key: "create-activity", label: "Tạo hoạt động", icon: <Plus className="size-4" /> },
     { key: "my-students", label: "Sinh viên", icon: <Users className="size-4" /> },
     { key: "attendance", label: "Điểm danh", icon: <ClipboardList className="size-4" /> },
-    { key: "reports-points", label: "Báo cáo / Điểm", icon: <FileText className="size-4" /> },
+    { key: "reports-points", label: "Báo cáo", icon: <FileText className="size-4" /> },
+    { key: "notifications", label: "Thông báo", icon: <Bell className="size-4" /> },
     { key: "personal-profile", label: "Hồ sơ cá nhân", icon: <UserCog className="size-4" /> },
   ],
   student: [
-    { key: "browse-activities", label: "Dashboard", icon: <LayoutDashboard className="size-4" /> },
-    { label: "My Enrollments", icon: <GraduationCap className="size-4" /> },
-    { key: "my-points", label: "My Points", icon: <BarChart3 className="size-4" /> },
-    { label: "Announcements", icon: <Bell className="size-4" /> },
-    { label: "Personal Profile", icon: <UserCog className="size-4" /> },
+    { key: "browse-activities", label: "Tổng quan", icon: <LayoutDashboard className="size-4" /> },
+    { key: "my-enrollments", label: "Đăng ký của tôi", icon: <GraduationCap className="size-4" /> },
+    { key: "my-points", label: "Điểm của tôi", icon: <BarChart3 className="size-4" /> },
+    { key: "announcements", label: "Thông báo", icon: <Bell className="size-4" /> },
+    { key: "personal-profile", label: "Hồ sơ cá nhân", icon: <UserCog className="size-4" /> },
   ],
   guest: [
-    { label: "Browse Activities", icon: <Eye className="size-4" /> },
+    { key: "browse-activities", label: "Xem hoạt động", icon: <Eye className="size-4" /> },
   ],
 }
 
@@ -111,7 +114,7 @@ export function AppSidebar({ isOpen = true, onClose, onMenuClick, activeMenu, ro
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-semibold tracking-tight">EduActivity</span>
-              <span className="text-xs text-sidebar-foreground/60 capitalize">{userRole} Mode</span>
+              <span className="text-xs text-sidebar-foreground/60 capitalize">Chế độ {userRole}</span>
             </div>
           </div>
           {/* Mobile Close Button */}
@@ -120,7 +123,7 @@ export function AppSidebar({ isOpen = true, onClose, onMenuClick, activeMenu, ro
             size="icon"
             className="size-8 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent md:hidden"
             onClick={handleClose}
-            aria-label="Close menu"
+            aria-label="Đóng menu"
           >
             <X className="size-5" />
           </Button>
@@ -131,7 +134,7 @@ export function AppSidebar({ isOpen = true, onClose, onMenuClick, activeMenu, ro
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           <ul className="flex flex-col gap-1">
             {items.map((item, index) => {
-              const menuKey = item.key || item.label.toLowerCase().replace(/\s+/g, "-")
+              const menuKey = item.key
               const isActive = activeMenu ? activeMenu === menuKey : index === 0
               return (
                 <li key={item.label}>

@@ -3,8 +3,32 @@
 import { useCallback, useEffect, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 
+const defaultActivityFilters = {
+  status: "",
+  keyword: "",
+  location: "",
+}
+
 function normalizeStatus(status) {
   return String(status || "").trim().toLowerCase()
+}
+
+function applyActivityFilters(activities, filters) {
+  const status = normalizeStatus(filters.status)
+  const keyword = String(filters.keyword || "").trim().toLowerCase()
+  const location = String(filters.location || "").trim().toLowerCase()
+
+  return activities.filter((activity) => {
+    const matchesStatus = !status || activity.statusKey === status
+    const matchesKeyword =
+      !keyword ||
+      [activity.title, activity.description].some((value) =>
+        String(value || "").toLowerCase().includes(keyword),
+      )
+    const matchesLocation = !location || String(activity.location || "").toLowerCase().includes(location)
+
+    return matchesStatus && matchesKeyword && matchesLocation
+  })
 }
 
 export function transformOrganizerActivity(activity = {}) {
@@ -34,7 +58,8 @@ export function transformOrganizerActivity(activity = {}) {
     date: activity.startTime ? new Date(activity.startTime).toISOString().split("T")[0] : "",
     time: activity.startTime ? new Date(activity.startTime).toTimeString().slice(0, 5) : "",
     instructorId: activity.organizerId,
-    instructor: activity.sponsor || activity.organizerId || "Ban tổ chức",
+    instructor: activity.organizerName || activity.organizerId || "Ban tổ chức",
+    organizerName: activity.organizerName,
   }
 }
 
@@ -49,8 +74,12 @@ async function readResponse(response) {
 
 export function useOrganizerData() {
   const { user, accessToken, refreshAccessToken, logout } = useAuth()
+  const [activityFilters, setActivityFilters] = useState(defaultActivityFilters)
+  const [allActivities, setAllActivities] = useState([])
   const [activities, setActivities] = useState([])
+  const [rooms, setRooms] = useState([])
   const [statistics, setStatistics] = useState(null)
+  const [reports, setReports] = useState([])
   const [registrationsByActivity, setRegistrationsByActivity] = useState({})
   const [attendanceByRegistration, setAttendanceByRegistration] = useState({})
   const [loading, setLoading] = useState(false)
@@ -59,9 +88,12 @@ export function useOrganizerData() {
 
   const makeAuthenticatedRequest = useCallback(
     async (url, options = {}, retryCount = 0) => {
+      const isFormData = options.body instanceof FormData
       const headers = {
-        "Content-Type": "application/json",
         ...(options.headers || {}),
+      }
+      if (!isFormData) {
+        headers["Content-Type"] = headers["Content-Type"] || "application/json"
       }
 
       const token = accessToken || localStorage.getItem("accessToken")
@@ -107,14 +139,29 @@ export function useOrganizerData() {
     const data = await requestJson(`/api/activities/organizer/${user.id}`)
     const list = Array.isArray(data) ? data : []
     const transformed = list.map(transformOrganizerActivity)
-    setActivities(transformed)
+    setAllActivities(transformed)
+    setActivities(applyActivityFilters(transformed, activityFilters))
     return transformed
-  }, [requestJson, user?.id])
+  }, [activityFilters, requestJson, user?.id])
 
   const refreshStatistics = useCallback(async () => {
     const data = await requestJson("/api/activities/my-club/statistics")
     setStatistics(data || null)
     return data
+  }, [requestJson])
+
+  const refreshRooms = useCallback(async () => {
+    const data = await requestJson("/api/rooms")
+    const list = Array.isArray(data) ? data : []
+    setRooms(list)
+    return list
+  }, [requestJson])
+
+  const refreshReports = useCallback(async () => {
+    const data = await requestJson("/api/activities/reports/my")
+    const list = Array.isArray(data) ? data : []
+    setReports(list)
+    return list
   }, [requestJson])
 
   const refreshAll = useCallback(async () => {
@@ -123,19 +170,32 @@ export function useOrganizerData() {
     setLoading(true)
     setError(null)
     try {
-      await Promise.all([refreshActivities(), refreshStatistics()])
+      await Promise.all([refreshActivities(), refreshStatistics(), refreshReports(), refreshRooms()])
     } catch (err) {
       setError(err.message)
+      setAllActivities([])
       setActivities([])
+      setRooms([])
       setStatistics(null)
+      setReports([])
     } finally {
       setLoading(false)
     }
-  }, [accessToken, refreshActivities, refreshStatistics, user?.id])
+  }, [accessToken, refreshActivities, refreshReports, refreshRooms, refreshStatistics, user?.id])
 
   useEffect(() => {
     refreshAll()
   }, [refreshAll])
+
+  const searchActivities = useCallback(
+    async (nextFilters) => {
+      const mergedFilters = { ...activityFilters, ...nextFilters }
+      setActivityFilters(mergedFilters)
+      setActivities(applyActivityFilters(allActivities, mergedFilters))
+      return applyActivityFilters(allActivities, mergedFilters)
+    },
+    [activityFilters, allActivities],
+  )
 
   const runMutation = useCallback(
     async (mutation, options = {}) => {
@@ -253,6 +313,18 @@ export function useOrganizerData() {
     [requestJson, runMutation],
   )
 
+  const checkScheduleConflicts = useCallback(
+    async ({ roomId, startTime, endTime }) => {
+      const params = new URLSearchParams()
+      params.set("roomId", roomId)
+      params.set("startTime", startTime)
+      params.set("endTime", endTime)
+      const data = await requestJson(`/api/activities/schedule-conflicts?${params.toString()}`)
+      return Array.isArray(data) ? data : []
+    },
+    [requestJson],
+  )
+
   const requestCancelActivity = useCallback(
     async (activityId, reason) =>
       runMutation(() =>
@@ -265,11 +337,23 @@ export function useOrganizerData() {
   )
 
   const submitReport = useCallback(
-    async (activityId, payload) =>
-      runMutation(() =>
-        requestJson(`/api/activities/${activityId}/reports`, {
+    async (activityId, file) =>
+      runMutation(() => {
+        const formData = new FormData()
+        formData.append("file", file)
+        return requestJson(`/api/activities/${activityId}/reports`, {
           method: "POST",
-          body: JSON.stringify(payload),
+          body: formData,
+        })
+      }),
+    [requestJson, runMutation],
+  )
+
+  const cancelReport = useCallback(
+    async (reportId) =>
+      runMutation(() =>
+        requestJson(`/api/activities/reports/${reportId}/cancel`, {
+          method: "PATCH",
         }),
       ),
     [requestJson, runMutation],
@@ -322,6 +406,24 @@ export function useOrganizerData() {
             ...prev,
             [registrationId]: result,
           }))
+          setRegistrationsByActivity((prev) =>
+            Object.fromEntries(
+              Object.entries(prev).map(([activityId, registrations]) => [
+                activityId,
+                registrations.map((registration) =>
+                  registration.id === registrationId
+                    ? {
+                        ...registration,
+                        attendanceId: result.id,
+                        isPresent: result.isPresent,
+                        checkInTime: result.checkInTime,
+                        earnedPoints: result.earnedPoints,
+                      }
+                    : registration,
+                ),
+              ]),
+            ),
+          )
           return result
         },
         { refresh: false },
@@ -353,20 +455,27 @@ export function useOrganizerData() {
 
   return {
     activities,
+    rooms,
     statistics,
+    reports,
     registrationsByActivity,
     attendanceByRegistration,
     loading,
     actionLoading,
     error,
+    activityFilters,
     refreshAll,
+    refreshReports,
+    searchActivities,
     loadRegistrations,
     createActivity,
     updateActivity,
     deleteActivity,
     submitActivity,
+    checkScheduleConflicts,
     requestCancelActivity,
     submitReport,
+    cancelReport,
     approveRegistration,
     rejectRegistration,
     checkInRegistration,

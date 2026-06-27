@@ -237,12 +237,12 @@ export function PersonalProfilePanel() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-card-foreground">Personal Profile</CardTitle>
+            <CardTitle className="text-card-foreground">Hồ sơ cá nhân</CardTitle>
             <CardDescription>Xem và thay đổi thông tin cá nhân của bạn</CardDescription>
           </div>
           <Button variant="outline" size="sm" onClick={() => setPasswordDialogOpen(true)} className="gap-2">
             <Lock className="size-4" />
-            Change Password
+            Đổi mật khẩu
           </Button>
         </CardHeader>
         <CardContent>
@@ -260,7 +260,7 @@ export function PersonalProfilePanel() {
                 </Avatar>
                 <div className="min-w-0">
                   <p className="font-medium text-card-foreground">{displayName}</p>
-                  <p className="text-sm text-muted-foreground truncate">{user?.email || "No email"}</p>
+                  <p className="text-sm text-muted-foreground truncate">{user?.email || "Chưa có email"}</p>
                 </div>
               </div>
 
@@ -278,7 +278,7 @@ export function PersonalProfilePanel() {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="fullName">Full Name</Label>
+                  <Label htmlFor="fullName">Họ và tên</Label>
                   <Input
                     id="fullName"
                     name="fullName"
@@ -289,7 +289,7 @@ export function PersonalProfilePanel() {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="studentCode">Student Code</Label>
+                  <Label htmlFor="studentCode">Mã sinh viên</Label>
                   <Input
                     id="studentCode"
                     name="studentCode"
@@ -300,7 +300,7 @@ export function PersonalProfilePanel() {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="department">Department / Class</Label>
+                  <Label htmlFor="department">Khoa / Lớp</Label>
                   <Input
                     id="department"
                     name="department"
@@ -311,7 +311,7 @@ export function PersonalProfilePanel() {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="phone">Phone</Label>
+                  <Label htmlFor="phone">Số điện thoại</Label>
                   <Input
                     id="phone"
                     name="phone"
@@ -322,7 +322,7 @@ export function PersonalProfilePanel() {
                 </div>
 
                 <div className="flex flex-col gap-2 sm:col-span-2">
-                  <Label htmlFor="avatarUrl">Avatar URL</Label>
+                  <Label htmlFor="avatarUrl">Đường dẫn ảnh đại diện</Label>
                   <Input
                     id="avatarUrl"
                     name="avatarUrl"
@@ -343,7 +343,7 @@ export function PersonalProfilePanel() {
                   ) : (
                     <>
                       <Save className="mr-2 size-4" />
-                      Save Changes
+                      Lưu thay đổi
                     </>
                   )}
                 </Button>

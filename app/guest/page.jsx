@@ -61,8 +61,8 @@ function GuestPageContent() {
       />
       <div className="flex flex-1 flex-col overflow-hidden">
         <DashboardHeader
-          title="Browse Activities"
-          subtitle="Explore all available activities"
+          title="Xem hoạt động"
+          subtitle="Khám phá các hoạt động hiện có"
           onMenuClick={() => setSidebarOpen(true)}
           isAuthenticated={false}
           onLoginClick={() => setShowLoginForm(true)}

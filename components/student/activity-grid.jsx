@@ -7,11 +7,36 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
+  Award,
   Calendar,
   Clock,
+  FileText,
   MapPin,
+  Target,
   Users,
 } from "lucide-react"
+
+function formatDateTime(value) {
+  if (!value) return "Chưa có"
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  return new Intl.DateTimeFormat("vi-VN", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(date)
+}
+
+function DetailItem({ icon: Icon, label, value }) {
+  return (
+    <div className="flex items-start gap-3 rounded-md border border-border bg-background p-3">
+      <Icon className="mt-1 size-5 shrink-0 text-primary" />
+      <div className="min-w-0">
+        <p className="text-xs uppercase text-muted-foreground">{label}</p>
+        <p className="break-words text-sm font-medium text-card-foreground">{value || "Chưa có"}</p>
+      </div>
+    </div>
+  )
+}
 
 export function ActivityGrid({
   activities = [],
@@ -49,22 +74,48 @@ export function ActivityGrid({
     })
   }
 
+  const getStatusKey = (status) => String(status || "").trim().toLowerCase()
+  const isClosedActivity = (activity) => {
+    const endTime = activity.endTime ? new Date(activity.endTime).getTime() : null
+    return ["closed", "completed"].includes(getStatusKey(activity.status)) || (Number.isFinite(endTime) && endTime <= Date.now())
+  }
+  const isOngoingActivity = (activity) => {
+    if (getStatusKey(activity.status) === "ongoing") return true
+    const startTime = activity.startTime ? new Date(activity.startTime).getTime() : null
+    const endTime = activity.endTime ? new Date(activity.endTime).getTime() : null
+    const now = Date.now()
+    return Number.isFinite(startTime) && startTime <= now && (!Number.isFinite(endTime) || endTime > now)
+  }
+  const canCancelRegistration = (activity) => !isClosedActivity(activity) && !isOngoingActivity(activity)
+  const canEnrollActivity = (activity) => getStatusKey(activity.status) === "approved"
+  const sortedActivities = activities
+    .filter((activity) => getStatusKey(activity.status) !== "cancelled")
+    .map((activity, index) => ({ activity, index }))
+    .sort((left, right) => {
+      const leftClosed = isClosedActivity(left.activity)
+      const rightClosed = isClosedActivity(right.activity)
+
+      if (leftClosed !== rightClosed) return leftClosed ? 1 : -1
+      return left.index - right.index
+    })
+    .map(({ activity }) => activity)
+
   return (
     <>
       <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {activities
-          .filter((a) => a.status !== "cancelled")
-          .map((activity) => {
-            const isEnrolled = localEnrolled.includes(activity.id)
-            const registrationStatus = String(registrationStatusByActivity[activity.id] || "").trim().toLowerCase()
-            const registrationLabel = registrationStatus === "approved" ? "Approved" : "Pending approval"
-            const isFull = activity.enrolled >= activity.capacity
-            return (
-              <Card
-                key={activity.id}
-                className="bg-card flex flex-col cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => setSelectedActivity(activity)}
-              >
+        {sortedActivities.map((activity) => {
+          const isEnrolled = localEnrolled.includes(activity.id)
+          const registrationStatus = String(registrationStatusByActivity[activity.id] || "").trim().toLowerCase()
+          const registrationLabel = registrationStatus === "approved" ? "Đã duyệt" : "Chờ duyệt"
+          const isFull = activity.enrolled >= activity.capacity
+          const isClosed = isClosedActivity(activity)
+          const isOngoing = isOngoingActivity(activity)
+          return (
+            <Card
+              key={activity.id}
+              className="bg-card flex flex-col cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => setSelectedActivity(activity)}
+            >
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <CategoryBadge category={activity.category} />
@@ -101,7 +152,7 @@ export function ActivityGrid({
                       <div className="flex items-center justify-between text-xs mb-1">
                         <span className="text-muted-foreground">Spots</span>
                         <span className="font-medium text-card-foreground">
-                          {activity.capacity - activity.enrolled} left
+                          Còn {activity.capacity - activity.enrolled} chỗ
                         </span>
                       </div>
                       <Progress value={(activity.enrolled / activity.capacity) * 100} className="h-1.5" />
@@ -109,30 +160,36 @@ export function ActivityGrid({
                     {isEnrolled ? (
                       <div className="flex flex-col gap-2">
                         <div className="rounded-md border border-warning/20 bg-warning/5 px-3 py-2 text-center text-xs font-medium text-card-foreground">
-                          {registrationLabel}
+                          {isClosed ? "Kết thúc" : isOngoing ? "Đang diễn ra" : registrationLabel}
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full border-destructive/30 text-destructive hover:bg-destructive/10"
-                          disabled={unenrollingActivityIds.includes(activity.id)}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleUnenroll(activity.id)
-                          }}
-                        >
-                          {unenrollingActivityIds.includes(activity.id) ? "Unenrolling..." : "Cancel registration"}
-                        </Button>
+                        {canCancelRegistration(activity) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full border-destructive/30 text-destructive hover:bg-destructive/10"
+                            disabled={unenrollingActivityIds.includes(activity.id)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleUnenroll(activity.id)
+                            }}
+                          >
+                            {unenrollingActivityIds.includes(activity.id) ? "Đang hủy..." : "Hủy đăng ký"}
+                          </Button>
+                        )}
                       </div>
-                    ) : activity.status === "completed" ? (
+                    ) : isClosed ? (
                       <Button variant="outline" size="sm" className="w-full mt-1" disabled>
-                        Completed
+                        Kết thúc
+                      </Button>
+                    ) : isOngoing ? (
+                      <Button variant="outline" size="sm" className="w-full mt-1" disabled>
+                        Đang diễn ra
                       </Button>
                     ) : isFull ? (
                       <Button variant="outline" size="sm" className="w-full mt-1" disabled>
-                        Full
+                        Đã đầy
                       </Button>
-                    ) : (
+                    ) : canEnrollActivity(activity) ? (
                       <Button
                         size="sm"
                         className="w-full mt-1 bg-primary text-primary-foreground hover:bg-primary/90"
@@ -142,7 +199,11 @@ export function ActivityGrid({
                           handleEnroll(activity.id)
                         }}
                       >
-                        {enrollingActivityIds.includes(activity.id) ? "Enrolling..." : "Enroll Now"}
+                        {enrollingActivityIds.includes(activity.id) ? "Đang đăng ký..." : "Đăng ký ngay"}
+                      </Button>
+                    ) : (
+                      <Button variant="outline" size="sm" className="w-full mt-1" disabled>
+                        Chưa mở đăng ký
                       </Button>
                     )}
                   </div>
@@ -170,44 +231,51 @@ export function ActivityGrid({
 
               <div className="flex flex-col gap-4">
                 {/* Activity Info */}
-                <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
-                  <div className="flex items-start gap-3">
-                    <Calendar className="size-5 text-primary mt-1 shrink-0" />
-                    <div>
-                      <p className="text-xs text-muted-foreground uppercase">Date</p>
-                      <p className="text-sm font-medium text-card-foreground">{selectedActivity.date}</p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <DetailItem icon={Clock} label="Bắt đầu" value={formatDateTime(selectedActivity.startTime)} />
+                  <DetailItem icon={Clock} label="Kết thúc" value={formatDateTime(selectedActivity.endTime)} />
+                  <DetailItem icon={Calendar} label="Hạn đăng ký" value={formatDateTime(selectedActivity.registrationDeadline)} />
+                  <DetailItem
+                    icon={MapPin}
+                    label="Phòng học"
+                    value={selectedActivity.roomCode || selectedActivity.location}
+                  />
+                  <DetailItem
+                    icon={Users}
+                    label="Đơn vị tổ chức"
+                    value={selectedActivity.organizerName || selectedActivity.instructor || selectedActivity.organizerId}
+                  />
+                  <DetailItem icon={Users} label="Đơn vị tài trợ" value={selectedActivity.sponsor || "Chưa có"} />
+                  <DetailItem icon={Users} label="Đối tượng tham gia" value={selectedActivity.targetAudience} />
+                  <DetailItem icon={Award} label="Điểm rèn luyện" value={`${selectedActivity.trainingPoints ?? 0} điểm`} />
+                </div>
+
+                <div className="grid gap-3">
+                  <div className="rounded-lg border border-border bg-background p-4">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-medium text-card-foreground">
+                      <FileText className="size-4 text-primary" />
+                      Mo ta
                     </div>
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                      {selectedActivity.description || "Chưa có mô tả"}
+                    </p>
                   </div>
 
-                  <div className="flex items-start gap-3">
-                    <Clock className="size-5 text-primary mt-1 shrink-0" />
-                    <div>
-                      <p className="text-xs text-muted-foreground uppercase">Time</p>
-                      <p className="text-sm font-medium text-card-foreground">{selectedActivity.time}</p>
+                  <div className="rounded-lg border border-border bg-background p-4">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-medium text-card-foreground">
+                      <Target className="size-4 text-primary" />
+                      Muc dich
                     </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <MapPin className="size-5 text-primary mt-1 shrink-0" />
-                    <div>
-                      <p className="text-xs text-muted-foreground uppercase">Location</p>
-                      <p className="text-sm font-medium text-card-foreground">{selectedActivity.location}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <Users className="size-5 text-primary mt-1 shrink-0" />
-                    <div>
-                      <p className="text-xs text-muted-foreground uppercase">Instructor</p>
-                      <p className="text-sm font-medium text-card-foreground">{selectedActivity.instructor}</p>
-                    </div>
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                      {selectedActivity.purpose || "Chưa có mục đích"}
+                    </p>
                   </div>
                 </div>
 
                 {/* Capacity Info */}
                 <div className="bg-secondary/30 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-card-foreground">Enrollment Status</span>
+                    <span className="text-sm font-medium text-card-foreground">Tình trạng đăng ký</span>
                     <span className="text-sm font-medium text-card-foreground">
                       {selectedActivity.enrolled} / {selectedActivity.capacity}
                     </span>
@@ -217,7 +285,7 @@ export function ActivityGrid({
                     className="h-2"
                   />
                   <p className="text-xs text-muted-foreground mt-2">
-                    {selectedActivity.capacity - selectedActivity.enrolled} spots remaining
+                    Còn {selectedActivity.capacity - selectedActivity.enrolled} chỗ
                   </p>
                 </div>
 
@@ -226,32 +294,42 @@ export function ActivityGrid({
                   {localEnrolled.includes(selectedActivity.id) ? (
                     <div className="flex flex-1 flex-col gap-2">
                       <div className="rounded-md border border-warning/20 bg-warning/5 px-3 py-2 text-center text-sm font-medium text-card-foreground">
-                        {String(registrationStatusByActivity[selectedActivity.id] || "").trim().toLowerCase() === "approved"
-                          ? "Registration approved"
-                          : "Waiting for organizer approval"}
+                        {isClosedActivity(selectedActivity)
+                          ? "Kết thúc"
+                          : isOngoingActivity(selectedActivity)
+                            ? "Đang diễn ra"
+                            : String(registrationStatusByActivity[selectedActivity.id] || "").trim().toLowerCase() === "approved"
+                              ? "Đăng ký đã duyệt"
+                              : "Đang chờ ban tổ chức duyệt"}
                       </div>
-                      <Button
-                        variant="destructive"
-                        disabled={unenrollingActivityIds.includes(selectedActivity.id)}
-                        onClick={() => {
-                          handleUnenroll(selectedActivity.id)
-                          setSelectedActivity(null)
-                        }}
-                      >
-                        {unenrollingActivityIds.includes(selectedActivity.id)
-                          ? "Unenrolling..."
-                          : "Cancel registration"}
-                      </Button>
+                      {canCancelRegistration(selectedActivity) && (
+                        <Button
+                          variant="destructive"
+                          disabled={unenrollingActivityIds.includes(selectedActivity.id)}
+                          onClick={() => {
+                            handleUnenroll(selectedActivity.id)
+                            setSelectedActivity(null)
+                          }}
+                        >
+                          {unenrollingActivityIds.includes(selectedActivity.id)
+                            ? "Đang hủy..."
+                            : "Hủy đăng ký"}
+                        </Button>
+                      )}
                     </div>
-                  ) : selectedActivity.status === "completed" ? (
+                  ) : isClosedActivity(selectedActivity) ? (
                     <Button disabled className="flex-1">
-                      Activity Completed
+                      Kết thúc
+                    </Button>
+                  ) : isOngoingActivity(selectedActivity) ? (
+                    <Button disabled className="flex-1">
+                      Đang diễn ra
                     </Button>
                   ) : selectedActivity.enrolled >= selectedActivity.capacity ? (
                     <Button disabled className="flex-1">
-                      Activity Full
+                      Hoạt động đã đầy
                     </Button>
-                  ) : (
+                  ) : canEnrollActivity(selectedActivity) ? (
                     <Button
                       className="flex-1 bg-primary"
                       disabled={enrollingActivityIds.includes(selectedActivity.id)}
@@ -260,7 +338,11 @@ export function ActivityGrid({
                         setSelectedActivity(null)
                       }}
                     >
-                      {enrollingActivityIds.includes(selectedActivity.id) ? "Enrolling..." : "Enroll Now"}
+                      {enrollingActivityIds.includes(selectedActivity.id) ? "Đang đăng ký..." : "Đăng ký ngay"}
+                    </Button>
+                  ) : (
+                    <Button disabled className="flex-1">
+                      Chưa mở đăng ký
                     </Button>
                   )}
                 </div>
