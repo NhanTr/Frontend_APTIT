@@ -22,6 +22,7 @@ import {
   DatabaseBackup,
   Download,
   FileBarChart,
+  FileSpreadsheet,
   FileText,
   History,
   Loader2,
@@ -30,7 +31,11 @@ import {
   Search,
   Settings,
   Shield,
+<<<<<<< Updated upstream
   Tags,
+=======
+  Upload,
+>>>>>>> Stashed changes
   Users,
   X,
 } from "lucide-react"
@@ -286,8 +291,16 @@ function UsersPanel() {
   const [formOpen, setFormOpen] = useState(false)
   const [form, setForm] = useState(emptyUserForm)
   const [busyId, setBusyId] = useState(null)
+<<<<<<< Updated upstream
   const [roleTarget, setRoleTarget] = useState(null)
   const [roleValue, setRoleValue] = useState("")
+=======
+  const [importOpen, setImportOpen] = useState(false)
+  const [importFile, setImportFile] = useState(null)
+  const [importBusy, setImportBusy] = useState(false)
+  const [importResult, setImportResult] = useState(null)
+  const [importError, setImportError] = useState(null)
+>>>>>>> Stashed changes
 
   const users = useAdminResource(async () => {
     const params = new URLSearchParams()
@@ -334,6 +347,7 @@ function UsersPanel() {
     }
   }
 
+<<<<<<< Updated upstream
   async function changeRole() {
     if (!roleTarget || !roleValue) return
     setBusyId(roleTarget.id)
@@ -363,6 +377,56 @@ function UsersPanel() {
     }
   }
 
+=======
+  async function downloadImportTemplate() {
+    try {
+      const blob = await api.request("/api/admin/users/import/template")
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = "users_import_template.csv"
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setImportError(err.message || "Không thể tải mẫu CSV.")
+    }
+  }
+
+  async function submitImport() {
+    if (!importFile) {
+      setImportError("Vui lòng chọn file CSV trước khi import.")
+      return
+    }
+    setImportBusy(true)
+    setImportError(null)
+    setImportResult(null)
+    try {
+      const fd = new FormData()
+      fd.append("file", importFile)
+      const payload = await api.request("/api/admin/users/import", {
+        method: "POST",
+        body: fd,
+      })
+      // Backend returns { code, message, result: BulkUserImportResponse }
+      const result = payload?.result ?? payload
+      setImportResult(result)
+      users.refresh()
+    } catch (err) {
+      setImportError(err.message || "Lỗi không xác định.")
+    } finally {
+      setImportBusy(false)
+    }
+  }
+
+  function resetImportDialog() {
+    setImportFile(null)
+    setImportResult(null)
+    setImportError(null)
+  }
+
+>>>>>>> Stashed changes
   const rows = Array.isArray(users.data) ? users.data : []
   const canCreateUser =
     form.username.trim() &&
@@ -379,9 +443,18 @@ function UsersPanel() {
         title="Quản lý người dùng"
         description="Tạo tài khoản, lọc người dùng, phân quyền và khóa tài khoản."
         action={
+<<<<<<< Updated upstream
           <div className="flex gap-2">
             <Button variant="outline" onClick={exportCsv}>
               <Download className="mr-2 size-4" /> Xuất CSV
+=======
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={downloadImportTemplate}>
+              <Download className="mr-2 size-4" /> Tải mẫu CSV
+            </Button>
+            <Button variant="outline" onClick={() => { resetImportDialog(); setImportOpen(true) }}>
+              <Upload className="mr-2 size-4" /> Import CSV
+>>>>>>> Stashed changes
             </Button>
             <Button onClick={() => setFormOpen(true)}>
               <Users className="mr-2 size-4" /> Thêm người dùng
@@ -534,6 +607,7 @@ function UsersPanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+<<<<<<< Updated upstream
       <Dialog open={Boolean(roleTarget)} onOpenChange={(open) => !open && setRoleTarget(null)}>
         <DialogContent>
           <DialogHeader>
@@ -553,6 +627,131 @@ function UsersPanel() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setRoleTarget(null)}>Hủy</Button>
             <Button onClick={changeRole} disabled={!roleValue || busyId === roleTarget?.id}>Lưu</Button>
+=======
+
+      <Dialog
+        open={importOpen}
+        onOpenChange={(open) => {
+          setImportOpen(open)
+          if (!open) resetImportDialog()
+        }}
+      >
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="size-5" /> Import người dùng từ CSV
+            </DialogTitle>
+            <DialogDescription>
+              Tải lên file CSV với các cột: username, password, email, role, fullName,
+              studentCode, className, department, phone, status. Mỗi dòng được xử lý
+              riêng; dòng lỗi sẽ được liệt kê bên dưới mà không ảnh hưởng các dòng khác.
+              Tối đa 1.000 dòng / lần.
+            </DialogDescription>
+          </DialogHeader>
+
+          {!importResult && (
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="import-file">File CSV</Label>
+                <Input
+                  id="import-file"
+                  type="file"
+                  accept=".csv,text/csv"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null
+                    setImportFile(file)
+                    setImportError(null)
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Chưa có file mẫu?{" "}
+                  <button
+                    type="button"
+                    className="text-primary underline-offset-2 hover:underline"
+                    onClick={downloadImportTemplate}
+                  >
+                    Tải mẫu CSV
+                  </button>
+                  .
+                </p>
+              </div>
+              {importError && (
+                <ErrorBanner message={importError} />
+              )}
+            </div>
+          )}
+
+          {importResult && (
+            <div className="grid gap-3">
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-md border bg-muted/40 p-3">
+                  <div className="text-xs text-muted-foreground">Tổng dòng</div>
+                  <div className="text-xl font-semibold">{importResult.totalRows ?? 0}</div>
+                </div>
+                <div className="rounded-md border bg-green-50 p-3">
+                  <div className="text-xs text-muted-foreground">Thành công</div>
+                  <div className="text-xl font-semibold text-green-700">{importResult.successCount ?? 0}</div>
+                </div>
+                <div className="rounded-md border bg-red-50 p-3">
+                  <div className="text-xs text-muted-foreground">Thất bại</div>
+                  <div className="text-xl font-semibold text-red-700">{importResult.failureCount ?? 0}</div>
+                </div>
+              </div>
+
+              {Array.isArray(importResult.errors) && importResult.errors.length > 0 && (
+                <div className="grid gap-2">
+                  <Label>Chi tiết dòng lỗi</Label>
+                  <div className="max-h-56 overflow-y-auto rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-16">Dòng</TableHead>
+                          <TableHead>Username</TableHead>
+                          <TableHead>Lý do</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {importResult.errors.map((err, idx) => (
+                          <TableRow key={`${err.rowNumber}-${idx}`}>
+                            <TableCell>{err.rowNumber}</TableCell>
+                            <TableCell>{err.username || "-"}</TableCell>
+                            <TableCell className="text-red-700">{err.reason}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+
+              {Array.isArray(importResult.createdUsernames) && importResult.createdUsernames.length > 0 && (
+                <div className="grid gap-2">
+                  <Label>Tài khoản đã tạo ({importResult.createdUsernames.length})</Label>
+                  <div className="flex flex-wrap gap-1 rounded-md border bg-muted/30 p-2 text-xs">
+                    {importResult.createdUsernames.map((u) => (
+                      <Badge key={u} variant="secondary">{u}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            {!importResult ? (
+              <>
+                <Button variant="outline" onClick={() => setImportOpen(false)} disabled={importBusy}>
+                  Hủy
+                </Button>
+                <Button onClick={submitImport} disabled={importBusy || !importFile}>
+                  {importBusy && <Loader2 className="mr-2 size-4 animate-spin" />}
+                  Import
+                </Button>
+              </>
+            ) : (
+              <Button onClick={() => setImportOpen(false)}>Đóng</Button>
+            )}
+>>>>>>> Stashed changes
           </DialogFooter>
         </DialogContent>
       </Dialog>
