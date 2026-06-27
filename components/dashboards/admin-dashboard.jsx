@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { PersonalProfilePanel } from "@/components/profile/personal-profile-panel"
-import { NotificationsPanel, SentNotificationsPanel } from "@/components/notifications/notifications-panel"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -11,7 +10,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -19,7 +17,6 @@ import {
   Activity,
   AlertCircle,
   BarChart3,
-  Bell,
   Calendar,
   Check,
   DatabaseBackup,
@@ -28,7 +25,6 @@ import {
   FileText,
   History,
   Loader2,
-  MessageSquare,
   RefreshCw,
   Save,
   Search,
@@ -58,14 +54,6 @@ const emptyUserForm = {
   phone: "",
   roleId: "4",
 }
-
-const notificationRoleOptions = [
-  { value: "all", label: "Tất cả vai trò", roleId: null },
-  { value: "1", label: "admin", roleId: 1 },
-  { value: "2", label: "manager", roleId: 2 },
-  { value: "3", label: "organizer", roleId: 3 },
-  { value: "4", label: "student", roleId: 4 },
-]
 
 function unwrapApi(data) {
   return data?.result ?? data
@@ -572,189 +560,6 @@ function UsersPanel() {
   )
 }
 
-function AnnouncementsPanel() {
-  const api = useAdminApi()
-  const [form, setForm] = useState({ title: "", content: "", type: "System", roleId: "" })
-  const [result, setResult] = useState(null)
-  const roles = useAdminResource(async () => unwrapApi(await api.request("/api/admin/roles")), [])
-
-  async function send() {
-    const payload = { ...form, roleId: form.roleId ? Number(form.roleId) : null }
-    const response = unwrapApi(await api.request("/api/admin/notifications/broadcast", { method: "POST", body: JSON.stringify(payload) }))
-    setResult(response)
-    setForm({ title: "", content: "", type: "System", roleId: "" })
-  }
-
-  return (
-    <Card>
-      <CardHeader><CardTitle>Gửi thông báo thủ công</CardTitle><CardDescription>Gửi thông báo đến sinh viên/CLB theo vai trò hoặc toàn hệ thống.</CardDescription></CardHeader>
-      <CardContent className="grid gap-4">
-        <ErrorBanner message={roles.error} />
-        {result && <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-emerald-600">Đã gửi thông báo thành công.</div>}
-        <div className="grid gap-2"><Label>Tiêu đề</Label><Input value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} /></div>
-        <div className="grid gap-2"><Label>Nội dung</Label><Textarea value={form.content} onChange={(e) => setForm((p) => ({ ...p, content: e.target.value }))} /></div>
-        <div className="grid gap-2 md:grid-cols-2">
-          <div className="grid gap-2"><Label>Loại</Label><Input value={form.type} onChange={(e) => setForm((p) => ({ ...p, type: e.target.value }))} /></div>
-          <div className="grid gap-2"><Label>Vai trò nhận</Label><Select value={form.roleId} onValueChange={(value) => setForm((p) => ({ ...p, roleId: value }))}><SelectTrigger className="w-full"><SelectValue placeholder="Tất cả" /></SelectTrigger><SelectContent>{(roles.data || []).map((role) => <SelectItem key={role.id} value={String(role.id)}>{getRoleLabel(role)}</SelectItem>)}</SelectContent></Select></div>
-        </div>
-        <Button className="w-fit" onClick={send}><Bell className="mr-2 size-4" /> Gửi thông báo</Button>
-      </CardContent>
-    </Card>
-  )
-}
-
-function AdminNotificationSenderPanel() {
-  const api = useAdminApi()
-  const [form, setForm] = useState({
-    title: "",
-    content: "",
-    recipientMode: "roles",
-    roleId: "all",
-    userIds: "",
-    className: "",
-    department: "",
-  })
-  const [result, setResult] = useState(null)
-  const [error, setError] = useState(null)
-
-  function resetForm() {
-    setForm({
-      title: "",
-      content: "",
-      recipientMode: "roles",
-      roleId: "all",
-      userIds: "",
-      className: "",
-      department: "",
-    })
-  }
-
-  async function send() {
-    setError(null)
-    setResult(null)
-
-    if (!form.title.trim() || !form.content.trim()) {
-      setError("Vui lòng nhập tiêu đề và nội dung")
-      return
-    }
-
-    const userIds = form.userIds
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean)
-
-    try {
-      let response
-      if (form.recipientMode === "manual") {
-        if (userIds.length === 0) {
-          setError("Nhập ít nhất một user ID")
-          return
-        }
-
-        response = unwrapApi(await api.request("/api/notifications", {
-          method: "POST",
-          body: JSON.stringify({
-            title: form.title.trim(),
-            content: form.content.trim(),
-            type: "System",
-            userIds,
-          }),
-        }))
-      } else {
-        const selectedRole = notificationRoleOptions.find((role) => role.value === form.roleId)
-        response = unwrapApi(await api.request("/api/admin/notifications/broadcast", {
-          method: "POST",
-          body: JSON.stringify({
-            title: form.title.trim(),
-            content: form.content.trim(),
-            roleId: selectedRole?.roleId ?? null,
-            className: form.className.trim() || null,
-            department: form.department.trim() || null,
-          }),
-        }))
-      }
-
-      setResult(response)
-      resetForm()
-    } catch (err) {
-      setError(err.message || "Gửi thông báo thất bại")
-    }
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Gửi thông báo</CardTitle>
-        <CardDescription>Gửi thông báo theo vai trò hoặc nhập trực tiếp user ID.</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        <ErrorBanner message={error} />
-        {result && (
-          <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-emerald-600">
-            Đã gửi thông báo thành công.
-          </div>
-        )}
-        <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
-          <div className="grid gap-2">
-            <Label>Tiêu đề</Label>
-            <Input value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} />
-          </div>
-          <div className="grid gap-2">
-            <Label>Người nhận</Label>
-            <RadioGroup
-              value={form.recipientMode}
-              onValueChange={(value) => setForm((p) => ({ ...p, recipientMode: value }))}
-              className="grid grid-cols-2 gap-3"
-            >
-              <Label className="flex h-9 items-center gap-2 rounded-md border border-input px-3 text-sm font-normal">
-                <RadioGroupItem value="roles" />
-                Vai trò
-              </Label>
-              <Label className="flex h-9 items-center gap-2 rounded-md border border-input px-3 text-sm font-normal">
-                <RadioGroupItem value="manual" />
-                Tự nhập
-              </Label>
-            </RadioGroup>
-          </div>
-        </div>
-        {form.recipientMode === "roles" ? (
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="grid gap-2">
-              <Label>Vai trò nhận</Label>
-              <Select value={form.roleId} onValueChange={(value) => setForm((p) => ({ ...p, roleId: value }))}>
-                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {notificationRoleOptions.map((role) => (
-                    <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label>Khoa</Label>
-              <Input value={form.department} onChange={(e) => setForm((p) => ({ ...p, department: e.target.value }))} placeholder="CNTT" />
-            </div>
-            <div className="grid gap-2">
-              <Label>Lớp</Label>
-              <Input value={form.className} onChange={(e) => setForm((p) => ({ ...p, className: e.target.value }))} placeholder="D20CQCN01-B" />
-            </div>
-          </div>
-        ) : (
-          <div className="grid gap-2">
-            <Label>Recipient user IDs</Label>
-            <Input value={form.userIds} onChange={(e) => setForm((p) => ({ ...p, userIds: e.target.value }))} placeholder="id1, id2, id3" />
-          </div>
-        )}
-        <div className="grid gap-2">
-          <Label>Nội dung</Label>
-          <Textarea value={form.content} onChange={(e) => setForm((p) => ({ ...p, content: e.target.value }))} />
-        </div>
-        <Button className="w-fit" onClick={send}><Bell className="mr-2 size-4" /> Gửi thông báo</Button>
-      </CardContent>
-    </Card>
-  )
-}
-
 function SettingsPanel() {
   const api = useAdminApi()
   const configs = useAdminResource(async () => unwrapApi(await api.request("/api/admin/system-configs")), [])
@@ -1103,276 +908,6 @@ function CategoriesPanel() {
                   <SelectItem value="ACTIVE">Hoạt động</SelectItem>
                   <SelectItem value="INACTIVE">Không hoạt động</SelectItem>
                 </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setFormOpen(false)}>Hủy</Button>
-            <Button onClick={save} disabled={!canSave}>{editing ? "Cập nhật" : "Tạo"}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  )
-}
-
-// ============================================================
-// QTHT-8: Notification Channels & Templates
-// ============================================================
-
-const emptyChannelForm = { code: "", name: "", description: "", status: "ACTIVE" }
-
-function NotificationChannelsPanel() {
-  const api = useAdminApi()
-  const [formOpen, setFormOpen] = useState(false)
-  const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState(emptyChannelForm)
-  const [busyId, setBusyId] = useState(null)
-  const [actionError, setActionError] = useState(null)
-
-  const channels = useAdminResource(async () => unwrapApi(await api.request("/api/admin/notification-channels")), [])
-
-  function openCreate() { setEditing(null); setForm(emptyChannelForm); setActionError(null); setFormOpen(true) }
-  function openEdit(row) {
-    setEditing(row)
-    setForm({ code: row.code || "", name: row.name || "", description: row.description || "", status: row.status || "ACTIVE" })
-    setActionError(null)
-    setFormOpen(true)
-  }
-
-  async function save() {
-    setActionError(null)
-    try {
-      const payload = { ...form, description: form.description.trim() || null }
-      if (editing) {
-        await api.request(`/api/admin/notification-channels/${editing.id}`, { method: "PUT", body: JSON.stringify(payload) })
-      } else {
-        await api.request(`/api/admin/notification-channels`, { method: "POST", body: JSON.stringify(payload) })
-      }
-      setFormOpen(false)
-      channels.refresh()
-    } catch (err) { setActionError(err.message) }
-  }
-
-  async function deactivate(row) {
-    if (!confirm(`Vô hiệu hóa kênh "${row.name}"?`)) return
-    setBusyId(row.id)
-    try {
-      await api.request(`/api/admin/notification-channels/${row.id}`, { method: "DELETE" })
-      channels.refresh()
-    } finally { setBusyId(null) }
-  }
-
-  const rows = Array.isArray(channels.data) ? channels.data : []
-  const canSave = form.code.trim() && form.name.trim()
-
-  return (
-    <div className="flex flex-col gap-4">
-      <SectionHeader
-        title="Kênh thông báo"
-        description="Quản lý các kênh gửi thông báo: Email, SMS, Push, In-App."
-        action={<Button onClick={openCreate}><MessageSquare className="mr-2 size-4" /> Thêm kênh</Button>}
-      />
-      <ErrorBanner message={channels.error || actionError} />
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Mã</TableHead>
-                  <TableHead>Tên</TableHead>
-                  <TableHead>Mô tả</TableHead>
-                  <TableHead>Trạng thái</TableHead>
-                  <TableHead className="text-right">Thao tác</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="font-mono text-xs">{row.code}</TableCell>
-                    <TableCell className="font-medium">{row.name}</TableCell>
-                    <TableCell className="max-w-md truncate text-muted-foreground">{row.description || "-"}</TableCell>
-                    <TableCell><Badge variant="outline" className={getStatusClass(row.status)}>{row.status || "-"}</Badge></TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button size="sm" variant="outline" onClick={() => openEdit(row)}>Sửa</Button>
-                        <Button size="sm" variant="outline" disabled={busyId === row.id} onClick={() => deactivate(row)}>Vô hiệu</Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          {channels.loading && <div className="p-4 text-sm text-muted-foreground">Đang tải...</div>}
-          {!channels.loading && rows.length === 0 && (
-            <div className="p-6 text-center text-sm text-muted-foreground">Chưa có kênh nào.</div>
-          )}
-        </CardContent>
-      </Card>
-      <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{editing ? "Sửa kênh" : "Thêm kênh"}</DialogTitle></DialogHeader>
-          <div className="grid gap-4">
-            <div className="grid gap-2"><Label>Mã kênh</Label><Input value={form.code} onChange={(e) => setForm((p) => ({ ...p, code: e.target.value }))} placeholder="EMAIL, SMS, PUSH, IN_APP" /></div>
-            <div className="grid gap-2"><Label>Tên kênh</Label><Input value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} /></div>
-            <div className="grid gap-2"><Label>Mô tả</Label><Textarea value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} /></div>
-            <div className="grid gap-2">
-              <Label>Trạng thái</Label>
-              <Select value={form.status} onValueChange={(v) => setForm((p) => ({ ...p, status: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="ACTIVE">Hoạt động</SelectItem><SelectItem value="INACTIVE">Không hoạt động</SelectItem></SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setFormOpen(false)}>Hủy</Button>
-            <Button onClick={save} disabled={!canSave}>{editing ? "Cập nhật" : "Tạo"}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  )
-}
-
-const emptyTemplateForm = { channelCode: "", code: "", subject: "", body: "", status: "ACTIVE" }
-
-function NotificationTemplatesPanel() {
-  const api = useAdminApi()
-  const [channelFilter, setChannelFilter] = useState("all")
-  const [formOpen, setFormOpen] = useState(false)
-  const [editing, setEditing] = useState(null)
-  const [form, setForm] = useState(emptyTemplateForm)
-  const [busyId, setBusyId] = useState(null)
-  const [actionError, setActionError] = useState(null)
-
-  const channels = useAdminResource(async () => unwrapApi(await api.request("/api/admin/notification-channels")), [])
-  const channelOptions = Array.isArray(channels.data) ? channels.data : []
-
-  const templates = useAdminResource(async () => {
-    const params = new URLSearchParams()
-    if (channelFilter && channelFilter !== "all") params.append("channelCode", channelFilter)
-    return unwrapApi(await api.request(`/api/admin/notification-templates?${params.toString()}`))
-  }, [channelFilter])
-
-  function openCreate() { setEditing(null); setForm(emptyTemplateForm); setActionError(null); setFormOpen(true) }
-  function openEdit(row) {
-    setEditing(row)
-    setForm({
-      channelCode: row.channelCode || "",
-      code: row.code || "",
-      subject: row.subject || "",
-      body: row.body || "",
-      status: row.status || "ACTIVE",
-    })
-    setActionError(null)
-    setFormOpen(true)
-  }
-
-  async function save() {
-    setActionError(null)
-    try {
-      if (editing) {
-        await api.request(`/api/admin/notification-templates/${editing.id}`, { method: "PUT", body: JSON.stringify(form) })
-      } else {
-        await api.request(`/api/admin/notification-templates`, { method: "POST", body: JSON.stringify(form) })
-      }
-      setFormOpen(false)
-      templates.refresh()
-    } catch (err) { setActionError(err.message) }
-  }
-
-  async function deactivate(row) {
-    if (!confirm(`Vô hiệu hóa template "${row.code}"?`)) return
-    setBusyId(row.id)
-    try {
-      await api.request(`/api/admin/notification-templates/${row.id}`, { method: "DELETE" })
-      templates.refresh()
-    } finally { setBusyId(null) }
-  }
-
-  const rows = Array.isArray(templates.data) ? templates.data : []
-  const canSave = form.channelCode && form.code.trim() && form.subject.trim() && form.body.trim()
-
-  return (
-    <div className="flex flex-col gap-4">
-      <SectionHeader
-        title="Template thông báo"
-        description="Mẫu nội dung thông báo cho từng kênh gửi."
-        action={<Button onClick={openCreate} disabled={channelOptions.length === 0} title={channelOptions.length === 0 ? "Cần tạo kênh trước" : ""}><FileText className="mr-2 size-4" /> Thêm template</Button>}
-      />
-      {channelOptions.length === 0 && !channels.loading && (
-        <Card><CardContent className="p-4 text-sm text-muted-foreground">Bạn cần tạo ít nhất một kênh thông báo trước khi tạo template.</CardContent></Card>
-      )}
-      <Card>
-        <CardContent className="grid gap-3 p-4 md:grid-cols-3">
-          <Select value={channelFilter} onValueChange={setChannelFilter}>
-            <SelectTrigger><SelectValue placeholder="Tất cả kênh" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tất cả kênh</SelectItem>
-              {channelOptions.map((c) => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
-      <ErrorBanner message={templates.error || channels.error || actionError} />
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Kênh</TableHead>
-                  <TableHead>Mã</TableHead>
-                  <TableHead>Tiêu đề</TableHead>
-                  <TableHead>Trạng thái</TableHead>
-                  <TableHead className="text-right">Thao tác</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="font-mono text-xs">{row.channelCode}</TableCell>
-                    <TableCell className="font-mono text-xs">{row.code}</TableCell>
-                    <TableCell className="font-medium">{row.subject}</TableCell>
-                    <TableCell><Badge variant="outline" className={getStatusClass(row.status)}>{row.status || "-"}</Badge></TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button size="sm" variant="outline" onClick={() => openEdit(row)}>Sửa</Button>
-                        <Button size="sm" variant="outline" disabled={busyId === row.id} onClick={() => deactivate(row)}>Vô hiệu</Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          {templates.loading && <div className="p-4 text-sm text-muted-foreground">Đang tải...</div>}
-          {!templates.loading && rows.length === 0 && (
-            <div className="p-6 text-center text-sm text-muted-foreground">Chưa có template nào.</div>
-          )}
-        </CardContent>
-      </Card>
-      <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{editing ? "Sửa template" : "Thêm template"}</DialogTitle></DialogHeader>
-          <div className="grid gap-4">
-            <div className="grid gap-2">
-              <Label>Kênh</Label>
-              <Select value={form.channelCode} onValueChange={(v) => setForm((p) => ({ ...p, channelCode: v }))}>
-                <SelectTrigger><SelectValue placeholder="Chọn kênh" /></SelectTrigger>
-                <SelectContent>{channelOptions.map((c) => <SelectItem key={c.code} value={c.code}>{c.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2"><Label>Mã template</Label><Input value={form.code} onChange={(e) => setForm((p) => ({ ...p, code: e.target.value }))} placeholder="VD: ACTIVITY_APPROVED" /></div>
-            <div className="grid gap-2"><Label>Tiêu đề</Label><Input value={form.subject} onChange={(e) => setForm((p) => ({ ...p, subject: e.target.value }))} /></div>
-            <div className="grid gap-2"><Label>Nội dung</Label><Textarea rows={5} value={form.body} onChange={(e) => setForm((p) => ({ ...p, body: e.target.value }))} placeholder="Có thể dùng biến: {{username}}, {{activityName}}, ..." /></div>
-            <div className="grid gap-2">
-              <Label>Trạng thái</Label>
-              <Select value={form.status} onValueChange={(v) => setForm((p) => ({ ...p, status: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="ACTIVE">Hoạt động</SelectItem><SelectItem value="INACTIVE">Không hoạt động</SelectItem></SelectContent>
               </Select>
             </div>
           </div>
@@ -1910,19 +1445,8 @@ export function AdminDashboard({ activeSection = "dashboard" }) {
       {normalizedSection === "users" && <UsersPanel />}
       {normalizedSection === "statistics" && <StatisticsPanel />}
       {normalizedSection === "categories" && <CategoriesPanel />}
-      {normalizedSection === "notification-channels" && <NotificationChannelsPanel />}
-      {normalizedSection === "notification-templates" && <NotificationTemplatesPanel />}
       {normalizedSection === "academic-periods" && <AcademicPeriodsPanel />}
       {normalizedSection === "permissions" && <PermissionsPanel />}
-      {(["announcements", "manage-notifications"].includes(normalizedSection)) && (
-        <div className="grid gap-4">
-          <AdminNotificationSenderPanel />
-          <SentNotificationsPanel title="Thông báo đã gửi" description="Các thông báo được gửi từ tài khoản admin của bạn" />
-        </div>
-      )}
-      {normalizedSection === "notifications" && (
-        <NotificationsPanel title="Thông báo" description="Các thông báo admin đã nhận" />
-      )}
       {normalizedSection === "settings" && <SettingsPanel />}
       {normalizedSection === "personal-profile" && <PersonalProfilePanel />}
     </div>
