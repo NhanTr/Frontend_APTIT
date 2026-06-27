@@ -3,8 +3,32 @@
 import { useCallback, useEffect, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 
+const defaultActivityFilters = {
+  status: "",
+  keyword: "",
+  location: "",
+}
+
 function normalizeStatus(status) {
   return String(status || "").trim().toLowerCase()
+}
+
+function applyActivityFilters(activities, filters) {
+  const status = normalizeStatus(filters.status)
+  const keyword = String(filters.keyword || "").trim().toLowerCase()
+  const location = String(filters.location || "").trim().toLowerCase()
+
+  return activities.filter((activity) => {
+    const matchesStatus = !status || activity.statusKey === status
+    const matchesKeyword =
+      !keyword ||
+      [activity.title, activity.description].some((value) =>
+        String(value || "").toLowerCase().includes(keyword),
+      )
+    const matchesLocation = !location || String(activity.location || "").toLowerCase().includes(location)
+
+    return matchesStatus && matchesKeyword && matchesLocation
+  })
 }
 
 export function transformOrganizerActivity(activity = {}) {
@@ -50,6 +74,8 @@ async function readResponse(response) {
 
 export function useOrganizerData() {
   const { user, accessToken, refreshAccessToken, logout } = useAuth()
+  const [activityFilters, setActivityFilters] = useState(defaultActivityFilters)
+  const [allActivities, setAllActivities] = useState([])
   const [activities, setActivities] = useState([])
   const [rooms, setRooms] = useState([])
   const [statistics, setStatistics] = useState(null)
@@ -113,9 +139,10 @@ export function useOrganizerData() {
     const data = await requestJson(`/api/activities/organizer/${user.id}`)
     const list = Array.isArray(data) ? data : []
     const transformed = list.map(transformOrganizerActivity)
-    setActivities(transformed)
+    setAllActivities(transformed)
+    setActivities(applyActivityFilters(transformed, activityFilters))
     return transformed
-  }, [requestJson, user?.id])
+  }, [activityFilters, requestJson, user?.id])
 
   const refreshStatistics = useCallback(async () => {
     const data = await requestJson("/api/activities/my-club/statistics")
@@ -146,6 +173,7 @@ export function useOrganizerData() {
       await Promise.all([refreshActivities(), refreshStatistics(), refreshReports(), refreshRooms()])
     } catch (err) {
       setError(err.message)
+      setAllActivities([])
       setActivities([])
       setRooms([])
       setStatistics(null)
@@ -158,6 +186,16 @@ export function useOrganizerData() {
   useEffect(() => {
     refreshAll()
   }, [refreshAll])
+
+  const searchActivities = useCallback(
+    async (nextFilters) => {
+      const mergedFilters = { ...activityFilters, ...nextFilters }
+      setActivityFilters(mergedFilters)
+      setActivities(applyActivityFilters(allActivities, mergedFilters))
+      return applyActivityFilters(allActivities, mergedFilters)
+    },
+    [activityFilters, allActivities],
+  )
 
   const runMutation = useCallback(
     async (mutation, options = {}) => {
@@ -425,8 +463,10 @@ export function useOrganizerData() {
     loading,
     actionLoading,
     error,
+    activityFilters,
     refreshAll,
     refreshReports,
+    searchActivities,
     loadRegistrations,
     createActivity,
     updateActivity,

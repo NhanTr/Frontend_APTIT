@@ -103,6 +103,26 @@ function getAttendedCount(activity) {
   return Number(activity?.attended || activity?.attendedStudentCount || activity?.attendedStudents || 0)
 }
 
+function isEndedActivity(activity) {
+  const statusKey = activity?.statusKey || getStatusKey(activity?.status)
+  const endTime = activity?.endTime ? new Date(activity.endTime).getTime() : null
+
+  return ["closed", "completed"].includes(statusKey) || (Number.isFinite(endTime) && endTime <= Date.now())
+}
+
+function sortActivitiesWithEndedLast(activities) {
+  return activities
+    .map((activity, index) => ({ activity, index }))
+    .sort((left, right) => {
+      const leftEnded = isEndedActivity(left.activity)
+      const rightEnded = isEndedActivity(right.activity)
+
+      if (leftEnded !== rightEnded) return leftEnded ? 1 : -1
+      return left.index - right.index
+    })
+    .map(({ activity }) => activity)
+}
+
 function statusBadge(status) {
   const key = getStatusKey(status)
   const meta = statusMeta[key] || { label: status || "Không rõ", className: "bg-muted text-muted-foreground border-border" }
@@ -452,10 +472,12 @@ function ActivityApprovalTable({ data, mode = "all" }) {
   const [selectedActivity, setSelectedActivity] = useState(null)
 
   const filteredActivities = useMemo(() => {
-    if (mode === "pending") {
-      return data.activities.filter((activity) => ["pending", "reviewing", "cancellationrequested"].includes(activity.statusKey))
-    }
-    return data.activities
+    const activities =
+      mode === "pending"
+        ? data.activities.filter((activity) => ["pending", "reviewing", "cancellationrequested"].includes(activity.statusKey))
+        : data.activities
+
+    return sortActivitiesWithEndedLast(activities)
   }, [data.activities, mode])
 
   const viewDetails = async (activity) => {

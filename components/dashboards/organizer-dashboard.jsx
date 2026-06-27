@@ -13,6 +13,7 @@ import {
   Loader2,
   MapPin,
   RefreshCw,
+  Search,
   Send,
   Trash2,
   Users,
@@ -64,6 +65,17 @@ const registrationMeta = {
   cancelled: { label: "Đã hủy", className: "bg-muted text-muted-foreground border-border" },
 }
 
+const statusOptions = [
+  { value: "Draft", label: "Bản nháp" },
+  { value: "Pending", label: "Chờ duyệt" },
+  { value: "Reviewing", label: "Đang xem xét" },
+  { value: "Approved", label: "Đã duyệt" },
+  { value: "Ongoing", label: "Đang diễn ra" },
+  { value: "Closed", label: "Đã kết thúc" },
+  { value: "Rejected", label: "Từ chối" },
+  { value: "Cancelled", label: "Đã hủy" },
+]
+
 const emptyForm = {
   title: "",
   description: "",
@@ -101,6 +113,26 @@ function toDateTimeLocal(value) {
 function getProgress(activity) {
   if (!activity?.capacity) return 0
   return Math.min(100, (Number(activity.enrolled || 0) / Number(activity.capacity)) * 100)
+}
+
+function isEndedActivity(activity) {
+  const statusKey = activity?.statusKey || getStatusKey(activity?.status)
+  const endTime = activity?.endTime ? new Date(activity.endTime).getTime() : null
+
+  return ["closed", "completed"].includes(statusKey) || (Number.isFinite(endTime) && endTime <= Date.now())
+}
+
+function sortActivitiesWithEndedLast(activities) {
+  return activities
+    .map((activity, index) => ({ activity, index }))
+    .sort((left, right) => {
+      const leftEnded = isEndedActivity(left.activity)
+      const rightEnded = isEndedActivity(right.activity)
+
+      if (leftEnded !== rightEnded) return leftEnded ? 1 : -1
+      return left.index - right.index
+    })
+    .map(({ activity }) => activity)
 }
 
 function statusBadge(status) {
@@ -403,6 +435,48 @@ function StatisticsCards({ activities, statistics }) {
   )
 }
 
+function ActivityFilters({ data }) {
+  const [filters, setFilters] = useState(data.activityFilters)
+
+  useEffect(() => {
+    setFilters(data.activityFilters)
+  }, [data.activityFilters])
+
+  const update = (event) => {
+    const { name, value } = event.target
+    setFilters((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const submit = async (event) => {
+    event.preventDefault()
+    await data.searchActivities(filters)
+  }
+
+  return (
+    <form onSubmit={submit} className="grid gap-3 md:grid-cols-[1fr_180px_1fr_auto]">
+      <Input name="keyword" value={filters.keyword || ""} onChange={update} placeholder="Tìm theo tên hoặc mô tả" />
+      <select
+        name="status"
+        value={filters.status || ""}
+        onChange={update}
+        className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+      >
+        <option value="">Tất cả trạng thái</option>
+        {statusOptions.map((status) => (
+          <option key={status.value} value={status.value}>
+            {status.label}
+          </option>
+        ))}
+      </select>
+      <Input name="location" value={filters.location || ""} onChange={update} placeholder="Địa điểm" />
+      <Button type="submit" disabled={data.loading}>
+        <Search className="mr-2 size-4" />
+        Tìm kiếm
+      </Button>
+    </form>
+  )
+}
+
 function ActivityDetailDialog({ activity, open, onOpenChange }) {
   if (!activity) return null
 
@@ -628,6 +702,8 @@ function MyActivitiesPanel({ data }) {
   const [editingActivity, setEditingActivity] = useState(null)
   const [viewingActivity, setViewingActivity] = useState(null)
   const [participantsActivity, setParticipantsActivity] = useState(null)
+  const sortedActivities = useMemo(() => sortActivitiesWithEndedLast(data.activities), [data.activities])
+  const hasActiveFilters = Boolean(data.activityFilters?.keyword || data.activityFilters?.status || data.activityFilters?.location)
 
   const handleDelete = async (activityId) => {
     if (!window.confirm("Xóa hoạt động này?")) return
@@ -656,13 +732,16 @@ function MyActivitiesPanel({ data }) {
           </Button>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
+          <ActivityFilters data={data} />
           {data.loading ? (
             <div className="flex items-center justify-center gap-2 py-10 text-muted-foreground">
               <Loader2 className="size-4 animate-spin" />Đang tải hoạt động...</div>
           ) : data.activities.length === 0 ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">Chưa có hoạt động nào.</div>
+            <div className="py-10 text-center text-sm text-muted-foreground">
+              {hasActiveFilters ? "Không tìm thấy hoạt động phù hợp." : "Chưa có hoạt động nào."}
+            </div>
           ) : (
-            data.activities.map((activity) => (
+            sortedActivities.map((activity) => (
               <ActivityCard
                 key={activity.id}
                 activity={activity}
@@ -735,7 +814,7 @@ function CreateActivityPanel({ data }) {
 }
 
 function ActivitySelect({ activities, value, onChange, placeholder = "Chọn hoạt động", filter }) {
-  const options = filter ? activities.filter(filter) : activities
+  const options = sortActivitiesWithEndedLast(filter ? activities.filter(filter) : activities)
 
   return (
     <Select value={value || ""} onValueChange={onChange}>
@@ -838,6 +917,7 @@ function StudentsPanel({ data }) {
 function StudentsPanelV2({ data }) {
   const [selectedActivityId, setSelectedActivityId] = useState("all")
   const isAllActivities = selectedActivityId === "all"
+  const sortedActivities = useMemo(() => sortActivitiesWithEndedLast(data.activities), [data.activities])
   const activityById = useMemo(
     () => Object.fromEntries(data.activities.map((activity) => [activity.id, activity])),
     [data.activities],
@@ -974,7 +1054,7 @@ function StudentsPanelV2({ data }) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tất cả hoạt động</SelectItem>
-                {data.activities.map((activity) => (
+                {sortedActivities.map((activity) => (
                   <SelectItem key={activity.id} value={activity.id}>
                     {activity.title}
                   </SelectItem>

@@ -88,25 +88,34 @@ export function ActivityGrid({
   }
   const canCancelRegistration = (activity) => !isClosedActivity(activity) && !isOngoingActivity(activity)
   const canEnrollActivity = (activity) => getStatusKey(activity.status) === "approved"
+  const sortedActivities = activities
+    .filter((activity) => getStatusKey(activity.status) !== "cancelled")
+    .map((activity, index) => ({ activity, index }))
+    .sort((left, right) => {
+      const leftClosed = isClosedActivity(left.activity)
+      const rightClosed = isClosedActivity(right.activity)
+
+      if (leftClosed !== rightClosed) return leftClosed ? 1 : -1
+      return left.index - right.index
+    })
+    .map(({ activity }) => activity)
 
   return (
     <>
       <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {activities
-          .filter((a) => a.status !== "cancelled")
-          .map((activity) => {
-            const isEnrolled = localEnrolled.includes(activity.id)
-            const registrationStatus = String(registrationStatusByActivity[activity.id] || "").trim().toLowerCase()
-            const registrationLabel = registrationStatus === "approved" ? "Đã duyệt" : "Chờ duyệt"
-            const isFull = activity.enrolled >= activity.capacity
-            const isClosed = isClosedActivity(activity)
-            const isOngoing = isOngoingActivity(activity)
-            return (
-              <Card
-                key={activity.id}
-                className="bg-card flex flex-col cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => setSelectedActivity(activity)}
-              >
+        {sortedActivities.map((activity) => {
+          const isEnrolled = localEnrolled.includes(activity.id)
+          const registrationStatus = String(registrationStatusByActivity[activity.id] || "").trim().toLowerCase()
+          const registrationLabel = registrationStatus === "approved" ? "Đã duyệt" : "Chờ duyệt"
+          const isFull = activity.enrolled >= activity.capacity
+          const isClosed = isClosedActivity(activity)
+          const isOngoing = isOngoingActivity(activity)
+          return (
+            <Card
+              key={activity.id}
+              className="bg-card flex flex-col cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => setSelectedActivity(activity)}
+            >
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <CategoryBadge category={activity.category} />
