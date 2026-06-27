@@ -22,8 +22,6 @@ import {
   Tags,
   MessageSquare,
   Calendar,
-  DatabaseBackup,
-  FileBarChart,
   ShieldCheck,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -37,11 +35,7 @@ const navConfig = {
     { key: "statistics", label: "Thống kê", icon: <BarChart3 className="size-4" /> },
     { key: "categories", label: "Danh mục", icon: <Tags className="size-4" /> },
     { key: "academic-periods", label: "Năm học / Học kỳ", icon: <Calendar className="size-4" /> },
-    { key: "notification-channels", label: "Kênh thông báo", icon: <MessageSquare className="size-4" /> },
-    { key: "notification-templates", label: "Template thông báo", icon: <FileText className="size-4" /> },
     { key: "permissions", label: "Phân quyền", icon: <ShieldCheck className="size-4" /> },
-    { key: "manage-notifications", label: "Gửi thông báo", icon: <Send className="size-4" /> },
-    { key: "notifications", label: "Thông báo của tôi", icon: <Bell className="size-4" /> },
     { key: "settings", label: "Cấu hình & Sao lưu", icon: <Settings className="size-4" /> },
     { key: "personal-profile", label: "Hồ sơ cá nhân", icon: <UserCog className="size-4" /> },
   ],
