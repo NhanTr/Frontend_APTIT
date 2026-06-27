@@ -19,7 +19,20 @@ const dashboardConfig = {
 }
 
 const validSectionsByRole = {
-  admin: ["dashboard", "users", "manage-notifications", "notifications", "settings", "personal-profile"],
+  admin: [
+    "dashboard",
+    "users",
+    "statistics",
+    "categories",
+    "academic-periods",
+    "notification-channels",
+    "notification-templates",
+    "permissions",
+    "manage-notifications",
+    "notifications",
+    "settings",
+    "personal-profile",
+  ],
   manager: ["dashboard", "activity-approvals", "student-statistics", "reports", "manage-notifications", "notifications", "personal-profile"],
   organizer: ["dashboard", "my-activities", "create-activity", "my-students", "attendance", "reports-points", "notifications", "personal-profile"],
   student: ["browse-activities", "my-enrollments", "my-points", "announcements", "personal-profile"],
