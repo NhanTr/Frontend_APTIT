@@ -838,10 +838,23 @@ function StudentsPanel({ data }) {
 function StudentsPanelV2({ data }) {
   const [selectedActivityId, setSelectedActivityId] = useState("all")
   const isAllActivities = selectedActivityId === "all"
+  const activityById = useMemo(
+    () => Object.fromEntries(data.activities.map((activity) => [activity.id, activity])),
+    [data.activities],
+  )
+  const withActivityTitle = (registration) => ({
+    ...registration,
+    activityTitle: activityById[registration.activityId]?.title || registration.activityId || "Chua co",
+  })
   const registrations = isAllActivities
-    ? data.activities.flatMap((activity) => data.registrationsByActivity[activity.id] || [])
+    ? data.activities.flatMap((activity) =>
+        (data.registrationsByActivity[activity.id] || []).map((registration) => ({
+          ...registration,
+          activityTitle: activity.title || registration.activityId,
+        })),
+      )
     : selectedActivityId
-      ? data.registrationsByActivity[selectedActivityId] || []
+      ? (data.registrationsByActivity[selectedActivityId] || []).map(withActivityTitle)
       : []
   const selectedActivity = data.activities.find((activity) => activity.id === selectedActivityId)
   const loadRegistrations = data.loadRegistrations
@@ -851,10 +864,7 @@ function StudentsPanelV2({ data }) {
     return status === "pending" || status === "registered"
   })
   const approvedRegistrations = registrations.filter((registration) => getStatusKey(registration.status) === "approved")
-  const otherRegistrations = registrations.filter((registration) => {
-    const status = getStatusKey(registration.status)
-    return status !== "pending" && status !== "registered" && status !== "approved"
-  })
+  const rejectedRegistrations = registrations.filter((registration) => getStatusKey(registration.status) === "rejected")
 
   useEffect(() => {
     if (isAllActivities) {
@@ -877,7 +887,7 @@ function StudentsPanelV2({ data }) {
     await data.rejectRegistration(registration.activityId, registration.studentId, reason.trim())
   }
 
-  const renderRegistrationTable = (items, showActions = false) => {
+  const renderRegistrationTable = (items, { showActions = false, showActivity = false, showRejectReason = false } = {}) => {
     if (items.length === 0) {
       return <div className="py-8 text-center text-sm text-muted-foreground">Khong co sinh vien trong nhom nay.</div>
     }
@@ -888,9 +898,11 @@ function StudentsPanelV2({ data }) {
           <TableHeader>
             <TableRow>
               <TableHead>Ma sinh vien</TableHead>
+              {showActivity && <TableHead>Hoat dong</TableHead>}
               <TableHead>Trang thai dang ky</TableHead>
               <TableHead>Ngay dang ky</TableHead>
               <TableHead>Nguoi duyet</TableHead>
+              {showRejectReason && <TableHead>Ly do</TableHead>}
               {showActions && <TableHead className="w-44">Thao tac</TableHead>}
             </TableRow>
           </TableHeader>
@@ -898,9 +910,19 @@ function StudentsPanelV2({ data }) {
             {items.map((registration) => (
               <TableRow key={registration.id}>
                 <TableCell className="font-medium">{registration.studentId}</TableCell>
+                {showActivity && (
+                  <TableCell className="max-w-72">
+                    <span className="line-clamp-2 text-card-foreground">{registration.activityTitle}</span>
+                  </TableCell>
+                )}
                 <TableCell>{registrationBadge(registration.status)}</TableCell>
                 <TableCell className="text-muted-foreground">{formatDateTime(registration.createdAt)}</TableCell>
                 <TableCell className="text-muted-foreground">{registration.approvedBy || "Chua co"}</TableCell>
+                {showRejectReason && (
+                  <TableCell className="max-w-96 text-muted-foreground">
+                    <span className="line-clamp-2">{registration.rejectReason || "Chua co ly do"}</span>
+                  </TableCell>
+                )}
                 {showActions && (
                   <TableCell>
                     <div className="flex gap-2">
@@ -988,8 +1010,8 @@ function StudentsPanelV2({ data }) {
                 <p className="text-2xl font-semibold text-card-foreground">{approvedRegistrations.length}</p>
               </div>
               <div className="rounded-lg border border-border bg-secondary/30 p-4">
-                <p className="text-sm text-muted-foreground">Khac</p>
-                <p className="text-2xl font-semibold text-card-foreground">{otherRegistrations.length}</p>
+                <p className="text-sm text-muted-foreground">Da tu choi</p>
+                <p className="text-2xl font-semibold text-card-foreground">{rejectedRegistrations.length}</p>
               </div>
             </div>
           )}
@@ -1003,7 +1025,7 @@ function StudentsPanelV2({ data }) {
               <CardTitle>Danh sach cho duyet</CardTitle>
               <CardDescription>Sinh vien moi dang ky, can BTC/CLB duyet hoac tu choi.</CardDescription>
             </CardHeader>
-            <CardContent>{renderRegistrationTable(pendingRegistrations, true)}</CardContent>
+            <CardContent>{renderRegistrationTable(pendingRegistrations, { showActions: true })}</CardContent>
           </Card>
 
           <Card>
@@ -1011,16 +1033,16 @@ function StudentsPanelV2({ data }) {
               <CardTitle>Danh sach da duyet</CardTitle>
               <CardDescription>Sinh vien da duoc xac nhan tham gia hoat dong.</CardDescription>
             </CardHeader>
-            <CardContent>{renderRegistrationTable(approvedRegistrations)}</CardContent>
+            <CardContent>{renderRegistrationTable(approvedRegistrations, { showActivity: true })}</CardContent>
           </Card>
 
-          {otherRegistrations.length > 0 && (
+          {rejectedRegistrations.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>Dang ky khac</CardTitle>
-                <CardDescription>Cac dang ky da huy hoac bi tu choi.</CardDescription>
+                <CardTitle>Danh sach da tu choi</CardTitle>
+                <CardDescription>Cac dang ky da bi tu choi kem ly do.</CardDescription>
               </CardHeader>
-              <CardContent>{renderRegistrationTable(otherRegistrations)}</CardContent>
+              <CardContent>{renderRegistrationTable(rejectedRegistrations, { showRejectReason: true })}</CardContent>
             </Card>
           )}
         </>

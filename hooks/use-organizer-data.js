@@ -34,7 +34,8 @@ export function transformOrganizerActivity(activity = {}) {
     date: activity.startTime ? new Date(activity.startTime).toISOString().split("T")[0] : "",
     time: activity.startTime ? new Date(activity.startTime).toTimeString().slice(0, 5) : "",
     instructorId: activity.organizerId,
-    instructor: activity.sponsor || activity.organizerId || "Ban tổ chức",
+    instructor: activity.organizerName || activity.organizerId || "Ban tổ chức",
+    organizerName: activity.organizerName,
   }
 }
 

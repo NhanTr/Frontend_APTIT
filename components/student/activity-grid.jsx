@@ -231,7 +231,12 @@ export function ActivityGrid({
                     label="Phong hoc"
                     value={selectedActivity.roomCode || selectedActivity.location}
                   />
-                  <DetailItem icon={Users} label="Don vi to chuc/tai tro" value={selectedActivity.sponsor || selectedActivity.instructor} />
+                  <DetailItem
+                    icon={Users}
+                    label="Don vi to chuc"
+                    value={selectedActivity.organizerName || selectedActivity.instructor || selectedActivity.organizerId}
+                  />
+                  <DetailItem icon={Users} label="Don vi tai tro" value={selectedActivity.sponsor || "Chua co"} />
                   <DetailItem icon={Users} label="Doi tuong tham gia" value={selectedActivity.targetAudience} />
                   <DetailItem icon={Award} label="Diem ren luyen" value={`${selectedActivity.trainingPoints ?? 0} diem`} />
                 </div>

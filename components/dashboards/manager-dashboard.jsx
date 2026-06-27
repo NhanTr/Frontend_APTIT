@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import {
   AlertCircle,
+  Award,
   Ban,
   Bell,
   CalendarDays,
@@ -23,6 +24,7 @@ import { NotificationsPanel, SentNotificationsPanel } from "@/components/notific
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
@@ -79,6 +81,10 @@ function getProgress(activity) {
   const capacity = Number(activity?.capacity || 0)
   if (!capacity) return 0
   return Math.min(100, (Number(activity.enrolled || 0) / capacity) * 100)
+}
+
+function getAttendedCount(activity) {
+  return Number(activity?.attended || activity?.attendedStudentCount || activity?.attendedStudents || 0)
 }
 
 function statusBadge(status) {
@@ -192,6 +198,7 @@ function ActivityRow({ activity, data, onViewDetails }) {
   const statusKey = getStatusKey(activity.status)
   const isCancellationRequested = statusKey === "cancellationrequested"
   const conflicts = data.conflictsByActivity[activity.id]
+  const attended = getAttendedCount(activity)
 
   const rejectCancel = async () => {
     const reason = window.prompt("Reason for rejecting cancellation")
@@ -200,16 +207,29 @@ function ActivityRow({ activity, data, onViewDetails }) {
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
+    <div className="rounded-lg border border-border bg-card p-3 sm:p-4">
       <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0">
-            <div className="mb-2 flex flex-wrap gap-2">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
               {statusBadge(activity.status)}
-              {activity.trainingPoints != null && <Badge variant="outline">{activity.trainingPoints} points</Badge>}
+              {activity.trainingPoints != null && <Badge variant="outline">{activity.trainingPoints} điểm</Badge>}
             </div>
             <h3 className="truncate text-base font-semibold text-card-foreground">{activity.title || "Untitled activity"}</h3>
-            <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{activity.description || "No description"}</p>
+            <div className="mt-2 grid gap-2 text-sm text-muted-foreground md:grid-cols-3">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="size-4" />
+                <span>{formatDateTime(activity.startTime)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <MapPin className="size-4" />
+                <span className="truncate">{activity.location || "No location"}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Users className="size-4" />
+                <span className="truncate">{activity.organizerName}</span>
+              </div>
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" onClick={() => onViewDetails(activity)} disabled={data.actionLoading}>
@@ -241,18 +261,18 @@ function ActivityRow({ activity, data, onViewDetails }) {
           </div>
         </div>
 
-        <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-3">
-          <div className="flex items-center gap-2">
-            <CalendarDays className="size-4" />
-            <span>{formatDateTime(activity.startTime)}</span>
+        <div className="grid gap-2 sm:grid-cols-3">
+          <div className="rounded-md border border-border bg-background px-3 py-2">
+            <p className="text-xs text-muted-foreground">Sức chứa</p>
+            <p className="text-sm font-semibold text-card-foreground">{activity.capacity || 0}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <MapPin className="size-4" />
-            <span className="truncate">{activity.location || "No location"}</span>
+          <div className="rounded-md border border-border bg-background px-3 py-2">
+            <p className="text-xs text-muted-foreground">Sinh viên đăng ký</p>
+            <p className="text-sm font-semibold text-card-foreground">{activity.enrolled || 0}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Users className="size-4" />
-            <span>{activity.organizerName}</span>
+          <div className="rounded-md border border-success/20 bg-success/5 px-3 py-2">
+            <p className="text-xs text-muted-foreground">Sinh viên tham gia</p>
+            <p className="text-sm font-semibold text-success">{attended}</p>
           </div>
         </div>
 
@@ -264,7 +284,7 @@ function ActivityRow({ activity, data, onViewDetails }) {
 
         <div>
           <div className="mb-1 flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Enrollment</span>
+            <span className="text-muted-foreground">Tỷ lệ đăng ký</span>
             <span className="font-medium text-card-foreground">
               {activity.enrolled}/{activity.capacity || 0}
             </span>
@@ -305,22 +325,22 @@ function ActivityDetailPanel({ activity, data, onClose }) {
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <CardTitle>{activity.title || "Untitled activity"}</CardTitle>
-          <CardDescription>
-            {activity.id} · {activity.organizerName}
-          </CardDescription>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {statusBadge(activity.status)}
-          <Button variant="outline" size="sm" onClick={onClose}>
-            Close
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="grid gap-4">
+    <Dialog open={Boolean(activity)} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
+        <DialogHeader>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <DialogTitle>{activity.title || "Untitled activity"}</DialogTitle>
+              <DialogDescription>
+                {activity.id} - {activity.organizerName}
+              </DialogDescription>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {statusBadge(activity.status)}
+            </div>
+          </div>
+        </DialogHeader>
+        <div className="grid gap-4">
         <div className="grid gap-3 text-sm md:grid-cols-2">
           <div>
             <p className="text-muted-foreground">Location</p>
@@ -337,10 +357,14 @@ function ActivityDetailPanel({ activity, data, onClose }) {
             <p className="font-medium text-card-foreground">{formatDateTime(activity.registrationDeadline)}</p>
           </div>
           <div>
-            <p className="text-muted-foreground">Capacity</p>
+            <p className="text-muted-foreground">Registration</p>
             <p className="font-medium text-card-foreground">
               {activity.enrolled}/{activity.capacity || 0}
             </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Participants</p>
+            <p className="font-medium text-card-foreground">{getAttendedCount(activity)}</p>
           </div>
           <div>
             <p className="text-muted-foreground">Training points</p>
@@ -372,7 +396,8 @@ function ActivityDetailPanel({ activity, data, onClose }) {
           </p>
         )}
 
-        <div className="flex flex-wrap justify-end gap-2">
+        </div>
+        <DialogFooter className="flex flex-wrap justify-end gap-2 sm:justify-end">
           {canCancelApproved && (
             <Button
               variant="outline"
@@ -401,9 +426,9 @@ function ActivityDetailPanel({ activity, data, onClose }) {
               </Button>
             </>
           )}
-        </div>
-      </CardContent>
-    </Card>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -456,6 +481,124 @@ function ActivityApprovalTable({ data, mode = "all" }) {
             filteredActivities.map((activity) => (
               <ActivityRow key={activity.id} activity={activity} data={data} onViewDetails={viewDetails} />
             ))
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+function StudentStatisticsPanel({ data }) {
+  const [filters, setFilters] = useState(data.studentStatisticFilters)
+
+  useEffect(() => {
+    setFilters(data.studentStatisticFilters)
+  }, [data.studentStatisticFilters])
+
+  const students = data.studentStatistics?.students || []
+  const totalParticipated = students.reduce((sum, student) => sum + Number(student.participatedActivityCount || 0), 0)
+  const totalPoints = students.reduce((sum, student) => sum + Number(student.totalEarnedPoints || 0), 0)
+
+  const update = (event) => {
+    const { name, value } = event.target
+    setFilters((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const submit = async (event) => {
+    event.preventDefault()
+    await data.searchStudentStatistics(filters)
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Card>
+          <CardContent className="flex items-center justify-between p-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Sinh viên</p>
+              <p className="text-2xl font-semibold text-card-foreground">{students.length}</p>
+            </div>
+            <Users className="size-5 text-muted-foreground" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center justify-between p-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Lượt tham gia</p>
+              <p className="text-2xl font-semibold text-card-foreground">{totalParticipated}</p>
+            </div>
+            <Check className="size-5 text-muted-foreground" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center justify-between p-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Tổng điểm</p>
+              <p className="text-2xl font-semibold text-card-foreground">{totalPoints}</p>
+            </div>
+            <Award className="size-5 text-muted-foreground" />
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle>Thống kê sinh viên tham gia hoạt động</CardTitle>
+              <CardDescription>Mã sinh viên, họ tên, lớp, số hoạt động đã tham gia và điểm rèn luyện.</CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => data.searchStudentStatistics(filters)} disabled={data.loading || data.actionLoading}>
+              <RefreshCw className="mr-2 size-4" />
+              Tải lại
+            </Button>
+          </div>
+          <form onSubmit={submit} className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_1fr_auto]">
+            <Input type="datetime-local" name="fromTime" value={filters.fromTime || ""} onChange={update} />
+            <Input type="datetime-local" name="toTime" value={filters.toTime || ""} onChange={update} />
+            <Input name="className" value={filters.className || ""} onChange={update} placeholder="Lớp" />
+            <Input name="department" value={filters.department || ""} onChange={update} placeholder="Khoa" />
+            <Button type="submit" disabled={data.loading}>
+              <Search className="mr-2 size-4" />
+              Lọc
+            </Button>
+          </form>
+        </CardHeader>
+        <CardContent>
+          {data.loading ? (
+            <div className="flex items-center justify-center gap-2 py-10 text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              Đang tải thống kê...
+            </div>
+          ) : students.length === 0 ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">Chưa có dữ liệu sinh viên tham gia.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Mã số sinh viên</TableHead>
+                    <TableHead>Tên</TableHead>
+                    <TableHead>Lớp</TableHead>
+                    <TableHead className="text-right">Số hoạt động đã tham gia</TableHead>
+                    <TableHead className="text-right">Điểm</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {students.map((student) => (
+                    <TableRow key={student.studentId || student.studentCode}>
+                      <TableCell className="font-medium">{student.studentCode || student.studentId || "Chưa có"}</TableCell>
+                      <TableCell>{student.fullName || "Chưa có"}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {[student.className, student.department].filter(Boolean).join(" / ") || "Chưa có"}
+                      </TableCell>
+                      <TableCell className="text-right font-medium">{student.participatedActivityCount ?? 0}</TableCell>
+                      <TableCell className="text-right font-semibold">{student.totalEarnedPoints ?? 0}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -824,6 +967,7 @@ export function ManagerDashboard({ activeSection = "dashboard" }) {
 
       {activeSection === "dashboard" && <ManagerOverview data={data} />}
       {activeSection === "activity-approvals" && <ActivityApprovalTable data={data} />}
+      {activeSection === "student-statistics" && <StudentStatisticsPanel data={data} />}
       {activeSection === "reports" && <ReportsPanel data={data} />}
       {activeSection === "manage-notifications" && (
         <div className="grid gap-4">

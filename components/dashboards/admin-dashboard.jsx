@@ -621,6 +621,10 @@ function SettingsPanel() {
   const configs = useAdminResource(async () => unwrapApi(await api.request("/api/admin/system-configs")), [])
   const logs = useAdminResource(async () => unwrapApi(await api.request("/api/admin/system-logs?page=0&size=20")), [])
   const backups = useAdminResource(async () => unwrapApi(await api.request("/api/admin/backups")), [])
+  const [restoreTarget, setRestoreTarget] = useState(null)
+  const [backupActionError, setBackupActionError] = useState(null)
+  const [restoring, setRestoring] = useState(false)
+  const visibleConfigs = (configs.data || []).filter((cfg) => !HIDDEN_SYSTEM_CONFIG_KEYS.has(cfg.key))
 
   async function updateConfig(key, value) {
     await api.request(`/api/admin/system-configs/${encodeURIComponent(key)}`, { method: "PUT", body: JSON.stringify({ value }) })
@@ -628,35 +632,131 @@ function SettingsPanel() {
   }
 
   async function createBackup() {
+    setBackupActionError(null)
     await api.request("/api/admin/backups/export", { method: "POST" })
     backups.refresh()
+  }
+
+  async function restoreBackup() {
+    if (!restoreTarget) return
+
+    setRestoring(true)
+    setBackupActionError(null)
+    try {
+      await api.request("/api/admin/backups/restore", {
+        method: "POST",
+        body: JSON.stringify({
+          fileName: restoreTarget.fileName,
+          confirmation: "RESTORE",
+        }),
+      })
+      setRestoreTarget(null)
+      backups.refresh()
+      logs.refresh()
+    } catch (err) {
+      setBackupActionError(err.message || "Restore backup failed")
+    } finally {
+      setRestoring(false)
+    }
   }
 
   return (
     <div className="grid gap-4">
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2"><Settings className="size-5" /> Cấu hình hệ thống</CardTitle><CardDescription>Cập nhật quy định vận hành mà không cần sửa mã nguồn.</CardDescription></CardHeader>
-        <CardContent><ErrorBanner message={configs.error} />{configs.loading ? "Đang tải..." : <div className="grid gap-3">{(configs.data || []).map((cfg) => <ConfigRow key={cfg.key} config={cfg} onSave={updateConfig} />)}</div>}</CardContent>
+        <CardContent><ErrorBanner message={configs.error} />{configs.loading ? "Đang tải..." : <div className="grid gap-3">{visibleConfigs.map((cfg) => <ConfigRow key={cfg.key} config={cfg} onSave={updateConfig} />)}</div>}</CardContent>
       </Card>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between"><div><CardTitle className="flex items-center gap-2"><DatabaseBackup className="size-5" /> Sao lưu dữ liệu</CardTitle><CardDescription>Tạo và xem danh sách bản sao lưu.</CardDescription></div><Button onClick={createBackup}>Tạo backup</Button></CardHeader>
-        <CardContent><GenericTable rows={Array.isArray(backups.data) ? backups.data : []} loading={backups.loading} error={backups.error} /></CardContent>
+        <CardContent>
+          <BackupTable
+            rows={Array.isArray(backups.data) ? backups.data : []}
+            loading={backups.loading}
+            error={backups.error || backupActionError}
+            onRestore={setRestoreTarget}
+          />
+        </CardContent>
       </Card>
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2"><History className="size-5" /> System Logs</CardTitle><CardDescription>Theo dõi thao tác hệ thống gần đây.</CardDescription></CardHeader>
         <CardContent><GenericTable rows={getPageItems(logs.data)} loading={logs.loading} error={logs.error} /></CardContent>
       </Card>
+      <Dialog open={Boolean(restoreTarget)} onOpenChange={(open) => !open && setRestoreTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Restore backup</DialogTitle>
+            <DialogDescription>
+              Hanh dong nay se xoa du lieu hien tai va phuc hoi toan bo du lieu tu file backup da chon.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+            File: <span className="font-medium">{restoreTarget?.fileName}</span>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRestoreTarget(null)} disabled={restoring}>Huy</Button>
+            <Button variant="destructive" onClick={restoreBackup} disabled={restoring}>
+              {restoring ? <Loader2 className="mr-2 size-4 animate-spin" /> : <RefreshCw className="mr-2 size-4" />}
+              Restore
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
+
+const HIDDEN_SYSTEM_CONFIG_KEYS = new Set(["ACTIVITY_LIFECYCLE_STATUSES"])
 
 function ConfigRow({ config, onSave }) {
   const [value, setValue] = useState(config.value ?? "")
   return (
     <div className="grid gap-2 rounded-lg border p-3 md:grid-cols-[1fr_2fr_auto] md:items-center">
-      <div><div className="font-medium">{config.key}</div><div className="text-xs text-muted-foreground">{config.description || config.type || "System config"}</div></div>
+      <div>
+        <div className="font-medium">{config.key}</div>
+        <div className="text-xs text-muted-foreground">
+          {config.description || config.type || "System config"}
+        </div>
+      </div>
       <Input value={value} onChange={(e) => setValue(e.target.value)} />
-      <Button size="sm" onClick={() => onSave(config.key, value)}><Save className="mr-1 size-4" /> Lưu</Button>
+      <Button size="sm" onClick={() => onSave(config.key, value)}>
+        <Save className="mr-1 size-4" /> Lưu
+      </Button>
+    </div>
+  )
+}
+
+function BackupTable({ rows = [], loading, error, onRestore }) {
+  return (
+    <div className="grid gap-3">
+      <ErrorBanner message={error} />
+      {loading ? <div className="text-sm text-muted-foreground">Dang tai...</div> : rows.length === 0 ? <div className="text-sm text-muted-foreground">Khong co du lieu.</div> : (
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>fileName</TableHead>
+                <TableHead>size</TableHead>
+                <TableHead>createdAt</TableHead>
+                <TableHead className="text-right">Thao tac</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((backup) => (
+                <TableRow key={backup.fileName}>
+                  <TableCell className="font-medium">{backup.fileName}</TableCell>
+                  <TableCell>{backup.size}</TableCell>
+                  <TableCell>{backup.createdAt}</TableCell>
+                  <TableCell className="text-right">
+                    <Button size="sm" variant="outline" onClick={() => onRestore(backup)}>
+                      <RefreshCw className="mr-2 size-4" /> Restore
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   )
 }

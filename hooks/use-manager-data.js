@@ -16,6 +16,13 @@ const defaultReportFilters = {
   reportStatus: "",
 }
 
+const defaultStudentStatisticFilters = {
+  fromTime: "",
+  toTime: "",
+  className: "",
+  department: "",
+}
+
 function normalizeStatus(status) {
   return String(status || "").trim().toLowerCase()
 }
@@ -40,6 +47,14 @@ export function transformManagerActivity(activity = {}) {
   const statusKey = normalizeStatus(status)
   const capacity = activity.maxParticipants ?? activity.capacity ?? 0
   const enrolled = activity.currentParticipants ?? activity.enrolled ?? 0
+  const attended =
+    activity.attendedStudentCount ??
+    activity.attendedStudents ??
+    activity.presentParticipants ??
+    activity.participatedStudentCount ??
+    activity.participantCount ??
+    activity.attended ??
+    0
 
   return {
     ...activity,
@@ -47,11 +62,12 @@ export function transformManagerActivity(activity = {}) {
     statusKey,
     capacity,
     enrolled,
+    attended,
     maxParticipants: capacity,
     currentParticipants: enrolled,
     date: activity.startTime ? new Date(activity.startTime).toISOString().split("T")[0] : "",
     time: activity.startTime ? new Date(activity.startTime).toTimeString().slice(0, 5) : "",
-    organizerName: activity.sponsor || activity.organizerId || "Organizer",
+    organizerName: activity.organizerName || activity.organizerId || "Organizer",
   }
 }
 
@@ -91,13 +107,26 @@ function buildReportsUrl(filters) {
   return `/api/manager/activities/reports${query ? `?${query}` : ""}`
 }
 
+function buildStudentStatisticsUrl(filters) {
+  const params = new URLSearchParams()
+  if (filters.fromTime) params.set("fromTime", filters.fromTime)
+  if (filters.toTime) params.set("toTime", filters.toTime)
+  if (filters.className) params.set("className", filters.className)
+  if (filters.department) params.set("department", filters.department)
+
+  const query = params.toString()
+  return `/api/manager/activities/student-statistics${query ? `?${query}` : ""}`
+}
+
 export function useManagerData() {
   const { accessToken, refreshAccessToken, logout } = useAuth()
   const [activityFilters, setActivityFilters] = useState(defaultActivityFilters)
   const [reportFilters, setReportFilters] = useState(defaultReportFilters)
+  const [studentStatisticFilters, setStudentStatisticFilters] = useState(defaultStudentStatisticFilters)
   const [activities, setActivities] = useState([])
   const [pageInfo, setPageInfo] = useState({ totalPages: 1, totalElements: 0, number: 0, size: 20 })
   const [statistics, setStatistics] = useState(null)
+  const [studentStatistics, setStudentStatistics] = useState(null)
   const [reports, setReports] = useState([])
   const [conflictsByActivity, setConflictsByActivity] = useState({})
   const [loading, setLoading] = useState(false)
@@ -187,19 +216,32 @@ export function useManagerData() {
     [reportFilters, requestJson],
   )
 
+  const refreshStudentStatistics = useCallback(
+    async (filters = studentStatisticFilters) => {
+      const data = await requestJson(buildStudentStatisticsUrl(filters))
+      const normalized = data || { students: [] }
+      setStudentStatistics({
+        ...normalized,
+        students: Array.isArray(normalized.students) ? normalized.students : [],
+      })
+      return normalized
+    },
+    [requestJson, studentStatisticFilters],
+  )
+
   const refreshAll = useCallback(async () => {
     if (!token) return
 
     setLoading(true)
     setError(null)
     try {
-      await Promise.all([refreshActivities(), refreshStatistics(), refreshReports()])
+      await Promise.all([refreshActivities(), refreshStatistics(), refreshReports(), refreshStudentStatistics()])
     } catch (err) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
-  }, [refreshActivities, refreshReports, refreshStatistics, token])
+  }, [refreshActivities, refreshReports, refreshStatistics, refreshStudentStatistics, token])
 
   useEffect(() => {
     refreshAll()
@@ -357,6 +399,24 @@ export function useManagerData() {
     [requestJson, runMutation],
   )
 
+  const searchStudentStatistics = useCallback(
+    async (nextFilters) => {
+      const mergedFilters = { ...studentStatisticFilters, ...nextFilters }
+      setStudentStatisticFilters(mergedFilters)
+      setLoading(true)
+      setError(null)
+      try {
+        return await refreshStudentStatistics(mergedFilters)
+      } catch (err) {
+        setError(err.message)
+        throw err
+      } finally {
+        setLoading(false)
+      }
+    },
+    [refreshStudentStatistics, studentStatisticFilters],
+  )
+
   const downloadReport = useCallback(
     (reportId) =>
       runMutation(
@@ -413,8 +473,10 @@ export function useManagerData() {
     activities,
     activityFilters,
     reportFilters,
+    studentStatisticFilters,
     pageInfo,
     statistics,
+    studentStatistics,
     reports,
     conflictsByActivity,
     loading,
@@ -423,6 +485,7 @@ export function useManagerData() {
     refreshAll,
     searchActivities,
     searchReports,
+    searchStudentStatistics,
     startActivityReview,
     approveActivity,
     rejectActivity,

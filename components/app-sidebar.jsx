@@ -36,6 +36,7 @@ const navConfig = {
   manager: [
     { label: "Dashboard", icon: <LayoutDashboard className="size-4" /> },
     { label: "Activity Approvals", icon: <CalendarDays className="size-4" /> },
+    { key: "student-statistics", label: "Thống kê sinh viên", icon: <BarChart3 className="size-4" /> },
     { label: "Reports", icon: <FileText className="size-4" /> },
     { key: "manage-notifications", label: "Quản lý thông báo", icon: <Send className="size-4" /> },
     { key: "notifications", label: "Thông báo", icon: <Bell className="size-4" /> },

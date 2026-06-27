@@ -94,7 +94,7 @@ export function RoleProvider({ children }) {
       location: backendActivity.location,
       capacity: backendActivity.maxParticipants ?? 0,
       enrolled: backendActivity.currentParticipants ?? 0,
-      instructor: backendActivity.sponsor || 'Unknown',
+      instructor: backendActivity.organizerName || backendActivity.organizerId || 'Unknown',
       instructorId: backendActivity.organizerId,
       // Additional backend fields
       startTime: backendActivity.startTime,
@@ -105,6 +105,7 @@ export function RoleProvider({ children }) {
       maxParticipants: backendActivity.maxParticipants,
       currentParticipants: backendActivity.currentParticipants,
       sponsor: backendActivity.sponsor,
+      organizerName: backendActivity.organizerName,
       targetAudience: backendActivity.targetAudience,
       purpose: backendActivity.purpose,
       trainingPoints: backendActivity.trainingPoints,
