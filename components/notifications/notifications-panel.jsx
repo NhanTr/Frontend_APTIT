@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Bell, CheckCheck, Eye, Loader2, RefreshCw, Send } from "lucide-react"
+import { Bell, Eye, Loader2, RefreshCw, Send } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -108,7 +108,6 @@ async function authenticatedFetch(url, options = {}) {
 export function NotificationsPanel({ title = "Thông báo", description = "Các cập nhật hệ thống và hoạt động mới nhất" }) {
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
-  const [actionLoadingId, setActionLoadingId] = useState("")
   const [detailLoadingId, setDetailLoadingId] = useState("")
   const [selectedNotification, setSelectedNotification] = useState(null)
   const [error, setError] = useState("")
@@ -135,23 +134,19 @@ export function NotificationsPanel({ title = "Thông báo", description = "Các 
     loadNotifications()
   }, [loadNotifications])
 
-  const setReadStatus = async (notification, isRead) => {
-    setActionLoadingId(notification.id)
-    setError("")
-    try {
-      const action = isRead ? "read" : "unread"
-      const data = await authenticatedFetch(`/api/notifications/${notification.id}/${action}`, {
-        method: "PATCH",
-      })
-      const updated = data?.result || data?.data || { ...notification, isRead }
-      setNotifications((prev) =>
-        prev.map((item) => (item.id === notification.id ? { ...item, ...updated, isRead } : item)),
-      )
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Không thể cập nhật thông báo")
-    } finally {
-      setActionLoadingId("")
-    }
+  const updateReadStatus = async (notification, isRead) => {
+    const action = isRead ? "read" : "unread"
+    const data = await authenticatedFetch(`/api/notifications/${notification.id}/${action}`, {
+      method: "PATCH",
+    })
+    const updated = data?.result || data?.data || { ...notification, isRead }
+    const nextNotification = { ...notification, ...updated, isRead }
+
+    setNotifications((prev) =>
+      prev.map((item) => (item.id === notification.id ? { ...item, ...updated, isRead } : item)),
+    )
+
+    return nextNotification
   }
 
   const viewDetail = async (notification) => {
@@ -160,10 +155,18 @@ export function NotificationsPanel({ title = "Thông báo", description = "Các 
     try {
       const data = await authenticatedFetch(`/api/notifications/${notification.id}`)
       const detail = data?.result || data?.data || notification
-      setSelectedNotification({
+      const detailNotification = {
         ...notification,
         ...detail,
         targetLabel: detail?.targetLabel || notification.targetLabel,
+      }
+      const selectedDetail = notification.isRead === false
+        ? await updateReadStatus(detailNotification, true)
+        : detailNotification
+
+      setSelectedNotification({
+        ...selectedDetail,
+        targetLabel: selectedDetail?.targetLabel || notification.targetLabel,
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : "Không thể tải chi tiết thông báo")
@@ -221,7 +224,7 @@ export function NotificationsPanel({ title = "Thông báo", description = "Các 
                       <div className="mb-1 flex flex-wrap items-center gap-2">
                         <p className="font-medium text-card-foreground">{notification.title || "Thông báo"}</p>
                         {notification.type && <Badge variant="outline">{notification.type}</Badge>}
-                        {isUnread && <Badge>Mới</Badge>}
+                        {isUnread ? <Badge>Mới</Badge> : <Badge variant="secondary">Đã đọc</Badge>}
                       </div>
                       <p className="text-xs text-muted-foreground">
                         Từ: {notification.senderName || notification.senderId || "Hệ thống"}
@@ -244,19 +247,6 @@ export function NotificationsPanel({ title = "Thông báo", description = "Các 
                           <Eye className="mr-2 size-4" />
                         )}
                         Xem
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={actionLoadingId === notification.id}
-                        onClick={() => setReadStatus(notification, isUnread)}
-                      >
-                        {actionLoadingId === notification.id ? (
-                          <Loader2 className="mr-2 size-4 animate-spin" />
-                        ) : (
-                          <CheckCheck className="mr-2 size-4" />
-                        )}
-                        {isUnread ? "Đánh dấu đã đọc" : "Đánh dấu chưa đọc"}
                       </Button>
                     </div>
                   </div>

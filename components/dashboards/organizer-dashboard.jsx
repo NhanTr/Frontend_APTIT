@@ -7,6 +7,7 @@ import {
   Calendar,
   CheckCircle2,
   ClipboardList,
+  Download,
   Edit3,
   Eye,
   FileText,
@@ -178,6 +179,236 @@ function pointsBadge(registration, activity) {
     return <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">Chờ duyệt</Badge>
   }
   return <span className="text-sm text-muted-foreground">—</span>
+}
+
+function getRegistrationStatusLabel(status) {
+  const key = getStatusKey(status)
+  return registrationMeta[key]?.label || status || "Không rõ"
+}
+
+function escapeXml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
+function sanitizeFileName(value) {
+  return String(value || "danh-sach-sinh-vien")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase()
+    .slice(0, 80) || "danh-sach-sinh-vien"
+}
+
+function getColumnName(index) {
+  let name = ""
+  let current = index + 1
+
+  while (current > 0) {
+    const remainder = (current - 1) % 26
+    name = String.fromCharCode(65 + remainder) + name
+    current = Math.floor((current - 1) / 26)
+  }
+
+  return name
+}
+
+function createCrc32Table() {
+  return Array.from({ length: 256 }, (_, index) => {
+    let value = index
+    for (let bit = 0; bit < 8; bit += 1) {
+      value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1
+    }
+    return value >>> 0
+  })
+}
+
+const crc32Table = createCrc32Table()
+
+function crc32(bytes) {
+  let crc = 0xffffffff
+  bytes.forEach((byte) => {
+    crc = crc32Table[(crc ^ byte) & 0xff] ^ (crc >>> 8)
+  })
+  return (crc ^ 0xffffffff) >>> 0
+}
+
+function writeUint16(bytes, value) {
+  bytes.push(value & 0xff, (value >>> 8) & 0xff)
+}
+
+function writeUint32(bytes, value) {
+  bytes.push(value & 0xff, (value >>> 8) & 0xff, (value >>> 16) & 0xff, (value >>> 24) & 0xff)
+}
+
+function concatBytes(chunks) {
+  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0)
+  const result = new Uint8Array(totalLength)
+  let offset = 0
+
+  chunks.forEach((chunk) => {
+    result.set(chunk, offset)
+    offset += chunk.length
+  })
+
+  return result
+}
+
+function createZip(entries) {
+  const encoder = new TextEncoder()
+  const fileChunks = []
+  const centralDirectoryChunks = []
+  let offset = 0
+
+  entries.forEach((entry) => {
+    const nameBytes = encoder.encode(entry.name)
+    const dataBytes = encoder.encode(entry.content)
+    const checksum = crc32(dataBytes)
+    const localHeader = []
+
+    writeUint32(localHeader, 0x04034b50)
+    writeUint16(localHeader, 20)
+    writeUint16(localHeader, 0x0800)
+    writeUint16(localHeader, 0)
+    writeUint16(localHeader, 0)
+    writeUint16(localHeader, 0)
+    writeUint32(localHeader, checksum)
+    writeUint32(localHeader, dataBytes.length)
+    writeUint32(localHeader, dataBytes.length)
+    writeUint16(localHeader, nameBytes.length)
+    writeUint16(localHeader, 0)
+
+    const localHeaderBytes = new Uint8Array([...localHeader, ...nameBytes])
+    fileChunks.push(localHeaderBytes, dataBytes)
+
+    const centralHeader = []
+    writeUint32(centralHeader, 0x02014b50)
+    writeUint16(centralHeader, 20)
+    writeUint16(centralHeader, 20)
+    writeUint16(centralHeader, 0x0800)
+    writeUint16(centralHeader, 0)
+    writeUint16(centralHeader, 0)
+    writeUint16(centralHeader, 0)
+    writeUint32(centralHeader, checksum)
+    writeUint32(centralHeader, dataBytes.length)
+    writeUint32(centralHeader, dataBytes.length)
+    writeUint16(centralHeader, nameBytes.length)
+    writeUint16(centralHeader, 0)
+    writeUint16(centralHeader, 0)
+    writeUint16(centralHeader, 0)
+    writeUint16(centralHeader, 0)
+    writeUint32(centralHeader, 0)
+    writeUint32(centralHeader, offset)
+
+    centralDirectoryChunks.push(new Uint8Array([...centralHeader, ...nameBytes]))
+    offset += localHeaderBytes.length + dataBytes.length
+  })
+
+  const centralDirectory = concatBytes(centralDirectoryChunks)
+  const endRecord = []
+
+  writeUint32(endRecord, 0x06054b50)
+  writeUint16(endRecord, 0)
+  writeUint16(endRecord, 0)
+  writeUint16(endRecord, entries.length)
+  writeUint16(endRecord, entries.length)
+  writeUint32(endRecord, centralDirectory.length)
+  writeUint32(endRecord, offset)
+  writeUint16(endRecord, 0)
+
+  return concatBytes([...fileChunks, centralDirectory, new Uint8Array(endRecord)])
+}
+
+function downloadActivityRegistrationsExcel(activity, registrations) {
+  const headers = [
+    "STT",
+    "Mã sinh viên",
+    "Họ tên",
+    "Email",
+    "Lớp",
+    "Khoa",
+    "Trạng thái đăng ký",
+    "Ngày đăng ký",
+    "Điểm danh",
+    "Điểm đã cấp",
+  ]
+  const rows = registrations.map((registration, index) => [
+    index + 1,
+    registration.studentCode || registration.studentId || "",
+    getStudentName(registration),
+    registration.studentEmail || "",
+    registration.className || "",
+    registration.department || "",
+    getRegistrationStatusLabel(registration.status),
+    formatDateTime(registration.createdAt),
+    registration.isPresent === true ? "Có mặt" : registration.isPresent === false ? "Vắng" : "Chưa điểm danh",
+    registration.earnedPoints ?? "",
+  ])
+  const sheetRows = [
+    [activity?.title || "Hoạt động"],
+    [`Thời gian: ${formatDateTime(activity?.startTime)}`],
+    [],
+    headers,
+    ...rows,
+  ]
+    .map((row, rowIndex) => {
+      const cells = row
+        .map((cell, columnIndex) => {
+          const ref = `${getColumnName(columnIndex)}${rowIndex + 1}`
+          return `<c r="${ref}" t="inlineStr"><is><t>${escapeXml(cell)}</t></is></c>`
+        })
+        .join("")
+      return `<row r="${rowIndex + 1}">${cells}</row>`
+    })
+    .join("")
+  const workbookXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>
+    <sheet name="Sinh viên" sheetId="1" r:id="rId1"/>
+  </sheets>
+</workbook>`
+  const workbookRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+</Relationships>`
+  const rootRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`
+  const contentTypesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+</Types>`
+  const sheetXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <sheetData>${sheetRows}</sheetData>
+</worksheet>`
+  const xlsxBytes = createZip([
+    { name: "[Content_Types].xml", content: contentTypesXml },
+    { name: "_rels/.rels", content: rootRelsXml },
+    { name: "xl/workbook.xml", content: workbookXml },
+    { name: "xl/_rels/workbook.xml.rels", content: workbookRelsXml },
+    { name: "xl/worksheets/sheet1.xml", content: sheetXml },
+  ])
+  const blob = new Blob([xlsxBytes], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement("a")
+  link.href = url
+  link.download = `${sanitizeFileName(activity?.title)}-sinh-vien.xlsx`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
 }
 
 function buildPayload(form) {
@@ -625,7 +856,17 @@ function ActivityParticipantsDialog({ activity, data, open, onOpenChange }) {
   )
 }
 
-function ActivityCard({ activity, actionLoading, onView, onViewParticipants, onEdit, onSubmit, onDelete, onCancelRequest }) {
+function ActivityCard({
+  activity,
+  actionLoading,
+  onView,
+  onViewParticipants,
+  onExportParticipants,
+  onEdit,
+  onSubmit,
+  onDelete,
+  onCancelRequest,
+}) {
   const statusKey = activity.statusKey
   const canEdit = ["draft", "pending", "rejected"].includes(statusKey)
   const canDelete = ["draft", "pending"].includes(statusKey)
@@ -649,6 +890,10 @@ function ActivityCard({ activity, actionLoading, onView, onViewParticipants, onE
             <Button size="sm" variant="outline" onClick={() => onViewParticipants(activity)} disabled={actionLoading}>
               <Users className="mr-1 size-4" />
               Sinh viên
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => onExportParticipants(activity)} disabled={actionLoading}>
+              <Download className="mr-1 size-4" />
+              Xuất Excel
             </Button>
             {canEdit && (
               <Button size="sm" variant="outline" onClick={() => onEdit(activity)} disabled={actionLoading}>
@@ -727,6 +972,15 @@ function MyActivitiesPanel({ data }) {
     await data.requestCancelActivity(activityId, reason.trim())
   }
 
+  const handleExportParticipants = async (activity) => {
+    const registrations = await data.loadRegistrations(activity.id)
+    if (registrations.length === 0) {
+      window.alert("Hoạt động này chưa có sinh viên đăng ký.")
+      return
+    }
+    downloadActivityRegistrationsExcel(activity, registrations)
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <StatisticsCards activities={data.activities} statistics={data.statistics} />
@@ -759,6 +1013,7 @@ function MyActivitiesPanel({ data }) {
                 actionLoading={data.actionLoading}
                 onView={setViewingActivity}
                 onViewParticipants={setParticipantsActivity}
+                onExportParticipants={handleExportParticipants}
                 onEdit={setEditingActivity}
                 onSubmit={data.submitActivity}
                 onDelete={handleDelete}
