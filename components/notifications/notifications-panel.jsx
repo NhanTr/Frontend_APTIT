@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ListPagination, usePagination } from "@/components/list-pagination"
 
 function unwrapNotifications(data) {
   if (Array.isArray(data)) return data
@@ -116,6 +117,7 @@ export function NotificationsPanel({ title = "Thông báo", description = "Các 
     () => notifications.filter((notification) => notification.isRead === false).length,
     [notifications],
   )
+  const notificationsPagination = usePagination(notifications, [notifications.length])
 
   const loadNotifications = useCallback(async () => {
     setLoading(true)
@@ -210,7 +212,8 @@ export function NotificationsPanel({ title = "Thông báo", description = "Các 
               <p className="text-sm">Chưa có thông báo.</p>
             </div>
           ) : (
-            notifications.map((notification) => {
+            <>
+              {notificationsPagination.items.map((notification) => {
               const isUnread = notification.isRead === false
               return (
                 <div
@@ -252,7 +255,9 @@ export function NotificationsPanel({ title = "Thông báo", description = "Các 
                   </div>
                 </div>
               )
-            })
+              })}
+              <ListPagination pagination={notificationsPagination} />
+            </>
           )}
         </CardContent>
       </Card>
@@ -293,6 +298,7 @@ export function SentNotificationsPanel({ title = "Thông báo đã gửi", descr
   }, [loadNotifications])
 
   const groupedNotifications = useMemo(() => groupSentNotifications(notifications), [notifications])
+  const sentPagination = usePagination(groupedNotifications, [groupedNotifications.length])
 
   const viewDetail = async (notification) => {
     setDetailLoadingId(notification.id)
@@ -346,38 +352,41 @@ export function SentNotificationsPanel({ title = "Thông báo đã gửi", descr
               <p className="text-sm">Chưa có thông báo đã gửi.</p>
             </div>
           ) : (
-            groupedNotifications.map((notification) => (
-              <div key={notification.id} className="rounded-lg border border-border bg-card p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0">
-                    <div className="mb-1 flex flex-wrap items-center gap-2">
-                      <p className="font-medium text-card-foreground">{notification.title || "Thông báo"}</p>
-                      {notification.type && <Badge variant="outline">{notification.type}</Badge>}
+            <>
+              {sentPagination.items.map((notification) => (
+                <div key={notification.id} className="rounded-lg border border-border bg-card p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="mb-1 flex flex-wrap items-center gap-2">
+                        <p className="font-medium text-card-foreground">{notification.title || "Thông báo"}</p>
+                        {notification.type && <Badge variant="outline">{notification.type}</Badge>}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Đến: {getRecipientLabel(notification)}
+                      </p>
+                      <p className="mt-2 line-clamp-2 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                        {notification.content || "Chưa có nội dung"}
+                      </p>
+                      <p className="mt-2 text-xs text-muted-foreground">{formatDateTime(notification.createdAt)}</p>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Đến: {getRecipientLabel(notification)}
-                    </p>
-                    <p className="mt-2 line-clamp-2 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                      {notification.content || "Chưa có nội dung"}
-                    </p>
-                    <p className="mt-2 text-xs text-muted-foreground">{formatDateTime(notification.createdAt)}</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={detailLoadingId === notification.id}
+                      onClick={() => viewDetail(notification)}
+                    >
+                      {detailLoadingId === notification.id ? (
+                        <Loader2 className="mr-2 size-4 animate-spin" />
+                      ) : (
+                        <Eye className="mr-2 size-4" />
+                      )}
+                      Xem
+                    </Button>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={detailLoadingId === notification.id}
-                    onClick={() => viewDetail(notification)}
-                  >
-                    {detailLoadingId === notification.id ? (
-                      <Loader2 className="mr-2 size-4 animate-spin" />
-                    ) : (
-                      <Eye className="mr-2 size-4" />
-                    )}
-                    Xem
-                  </Button>
                 </div>
-              </div>
-            ))
+              ))}
+              <ListPagination pagination={sentPagination} />
+            </>
           )}
         </CardContent>
       </Card>

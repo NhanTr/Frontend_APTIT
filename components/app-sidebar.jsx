@@ -35,7 +35,7 @@ const navConfig = {
   ],
   manager: [
     { key: "dashboard", label: "Tổng quan", icon: <LayoutDashboard className="size-4" /> },
-    { key: "activity-approvals", label: "Duyệt hoạt động", icon: <CalendarDays className="size-4" /> },
+    { key: "activity-approvals", label: "Thống kê hoạt động", icon: <CalendarDays className="size-4" /> },
     { key: "student-statistics", label: "Thống kê sinh viên", icon: <BarChart3 className="size-4" /> },
     { key: "reports", label: "Báo cáo", icon: <FileText className="size-4" /> },
     { key: "manage-notifications", label: "Quản lý thông báo", icon: <Send className="size-4" /> },

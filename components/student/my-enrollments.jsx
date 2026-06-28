@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ListPagination, usePagination } from "@/components/list-pagination"
 import { Calendar, CheckCircle2, ChevronRight, Clock, GraduationCap, MapPin } from "lucide-react"
 
 const activityStatusMeta = {
@@ -133,6 +134,7 @@ export function MyEnrollments({
 }) {
   const [selectedActivity, setSelectedActivity] = useState(null)
   const enrolledActivities = activities.filter((activity) => enrolled.includes(activity.id))
+  const enrolledPagination = usePagination(enrolledActivities, [activities.length, enrolled.length])
 
   const handleUnenroll = async (activityId) => {
     if (onUnenroll) {
@@ -171,7 +173,7 @@ export function MyEnrollments({
           <CardDescription>Theo dõi trạng thái hoạt động và trạng thái duyệt đăng ký riêng biệt</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          {enrolledActivities.map((activity) => {
+          {enrolledPagination.items.map((activity) => {
             const registration = getRegistration(activity)
             const registrationStatus = getRegistrationStatus(activity)
             const canCheckIn = canCheckInActivity(activity)
@@ -246,6 +248,7 @@ export function MyEnrollments({
               <p className="text-xs">Vào Tổng quan để tìm hoạt động và gửi yêu cầu duyệt.</p>
             </div>
           )}
+          <ListPagination pagination={enrolledPagination} />
         </CardContent>
       </Card>
 

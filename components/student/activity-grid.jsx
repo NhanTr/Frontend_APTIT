@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { StatusBadge, CategoryBadge } from "@/components/status-badge"
+import { ListPagination, usePagination } from "@/components/list-pagination"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -99,11 +100,12 @@ export function ActivityGrid({
       return left.index - right.index
     })
     .map(({ activity }) => activity)
+  const activitiesPagination = usePagination(sortedActivities, [activities.length])
 
   return (
     <>
       <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {sortedActivities.map((activity) => {
+        {activitiesPagination.items.map((activity) => {
           const isEnrolled = localEnrolled.includes(activity.id)
           const registrationStatus = String(registrationStatusByActivity[activity.id] || "").trim().toLowerCase()
           const registrationLabel = registrationStatus === "approved" ? "Đã duyệt" : "Chờ duyệt"
@@ -352,14 +354,10 @@ export function ActivityGrid({
         </DialogContent>
       </Dialog>
 
-      {/* Pagination Info & Load More */}
-      <div className="flex flex-col items-center gap-4 mt-6">
-        <p className="text-sm text-muted-foreground">
-          Trang <span className="font-semibold text-card-foreground">{currentPage + 1}</span> | Tổng hoạt động:{" "}
-          <span className="font-semibold text-card-foreground">{activities.length}</span>
-        </p>
+      <div className="mt-6">
+        <ListPagination pagination={activitiesPagination} />
         {hasMore && (
-          <Button onClick={onLoadMore} disabled={loading} variant="outline" className="w-full sm:w-auto">
+          <Button onClick={onLoadMore} disabled={loading} variant="outline" className="mt-3 w-full sm:w-auto">
             {loading ? "Đang tải..." : "Tải thêm"}
           </Button>
         )}

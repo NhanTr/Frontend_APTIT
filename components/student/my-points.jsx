@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { ListPagination, usePagination } from "@/components/list-pagination"
 import { Award, Calendar, CheckCircle2, Clock, MapPin, RefreshCw } from "lucide-react"
 
 function getStatusKey(status) {
@@ -62,6 +63,7 @@ export function MyPoints({ getMyPoints }) {
   const [semester, setSemester] = useState("all")
   const [pointsData, setPointsData] = useState({ totalPoints: 0, activities: [] })
   const [loading, setLoading] = useState(false)
+  const pointsPagination = usePagination(pointsData.activities, [year, semester, pointsData.activities.length])
 
   const filters = useMemo(
     () => ({
@@ -164,44 +166,47 @@ export function MyPoints({ getMyPoints }) {
               Chưa có lịch sử điểm trong khoảng thời gian đã chọn.
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Hoạt động</TableHead>
-                  <TableHead>Time</TableHead>
-                  <TableHead>Trạng thái</TableHead>
-                  <TableHead>Attendance</TableHead>
-                  <TableHead className="text-right">Điểm</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pointsData.activities.map((activity) => (
-                  <TableRow key={activity.registrationId || activity.activityId}>
-                    <TableCell>
-                      <div className="flex min-w-56 flex-col gap-1">
-                        <span className="font-medium">{activity.activityTitle || "Hoạt động chưa có tên"}</span>
-                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <MapPin className="size-3" />
-                          {activity.location || "Chưa có địa điểm"}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex min-w-44 flex-col gap-1 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Calendar className="size-3" />
-                          {formatDateTime(activity.startTime)}
-                        </span>
-                        <span>{formatDateTime(activity.endTime)}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{statusBadge(activity.activityStatus)}</TableCell>
-                    <TableCell>{attendanceBadge(activity)}</TableCell>
-                    <TableCell className="text-right font-semibold">{activity.earnedPoints ?? 0}</TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Hoạt động</TableHead>
+                    <TableHead>Time</TableHead>
+                    <TableHead>Trạng thái</TableHead>
+                    <TableHead>Attendance</TableHead>
+                    <TableHead className="text-right">Điểm</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {pointsPagination.items.map((activity) => (
+                    <TableRow key={activity.registrationId || activity.activityId}>
+                      <TableCell>
+                        <div className="flex min-w-56 flex-col gap-1">
+                          <span className="font-medium">{activity.activityTitle || "Hoạt động chưa có tên"}</span>
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <MapPin className="size-3" />
+                            {activity.location || "Chưa có địa điểm"}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex min-w-44 flex-col gap-1 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="size-3" />
+                            {formatDateTime(activity.startTime)}
+                          </span>
+                          <span>{formatDateTime(activity.endTime)}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{statusBadge(activity.activityStatus)}</TableCell>
+                      <TableCell>{attendanceBadge(activity)}</TableCell>
+                      <TableCell className="text-right font-semibold">{activity.earnedPoints ?? 0}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <ListPagination pagination={pointsPagination} />
+            </>
           )}
         </CardContent>
       </Card>

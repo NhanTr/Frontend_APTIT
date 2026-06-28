@@ -7,6 +7,7 @@ import { StatusBadge, CategoryBadge } from "@/components/status-badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ActivityFilter } from "@/components/student/activity-filter"
+import { ListPagination, usePagination } from "@/components/list-pagination"
 import {
   Clock,
   MapPin,
@@ -34,13 +35,13 @@ function isApprovedActivity(activity) {
 
 function BrowseActivitiesGuest({ activities, currentPage, hasMore, onLoadMore, loading }) {
   const [selectedActivity, setSelectedActivity] = useState(null)
+  const approvedActivities = activities.filter(isApprovedActivity)
+  const activitiesPagination = usePagination(approvedActivities, [activities.length])
 
   return (
     <>
       <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {activities
-          .filter(isApprovedActivity)
-          .map((activity) => {
+        {activitiesPagination.items.map((activity) => {
             return (
               <Card 
                 key={activity.id} 
@@ -185,17 +186,14 @@ function BrowseActivitiesGuest({ activities, currentPage, hasMore, onLoadMore, l
         </DialogContent>
       </Dialog>
 
-      {/* Pagination Info & Load More */}
-      <div className="flex flex-col items-center gap-4 mt-6">
-        <p className="text-sm text-muted-foreground">
-          Trang <span className="font-semibold text-card-foreground">{currentPage + 1}</span> | Tổng hoạt động: <span className="font-semibold text-card-foreground">{activities.length}</span>
-        </p>
+      <div className="mt-6">
+        <ListPagination pagination={activitiesPagination} />
         {hasMore && (
           <Button 
             onClick={onLoadMore}
             disabled={loading}
             variant="outline"
-            className="w-full sm:w-auto"
+            className="mt-3 w-full sm:w-auto"
           >
             {loading ? 'Đang tải...' : 'Tải thêm'}
           </Button>

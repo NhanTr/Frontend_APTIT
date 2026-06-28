@@ -19,6 +19,7 @@ import {
   X,
 } from "lucide-react"
 import { useManagerData } from "@/hooks/use-manager-data"
+import { ListPagination, usePagination } from "@/components/list-pagination"
 import { PersonalProfilePanel } from "@/components/profile/personal-profile-panel"
 import { NotificationsPanel, SentNotificationsPanel } from "@/components/notifications/notifications-panel"
 import { Badge } from "@/components/ui/badge"
@@ -698,6 +699,12 @@ function ActivityApprovalTable({ data, mode = "all" }) {
 
     return sortActivitiesWithEndedLast(activities)
   }, [data.activities, mode])
+  const activityPagination = usePagination(filteredActivities, [
+    mode,
+    data.activityFilters?.keyword || "",
+    data.activityFilters?.status || "",
+    data.activityFilters?.location || "",
+  ])
 
   const viewDetails = async (activity) => {
     if (activity.statusKey === "pending") {
@@ -735,9 +742,12 @@ function ActivityApprovalTable({ data, mode = "all" }) {
           ) : filteredActivities.length === 0 ? (
             <div className="py-10 text-center text-sm text-muted-foreground">Không tìm thấy hoạt động.</div>
           ) : (
-            filteredActivities.map((activity) => (
-              <ActivityRow key={activity.id} activity={activity} data={data} onViewDetails={viewDetails} />
-            ))
+            <>
+              {activityPagination.items.map((activity) => (
+                <ActivityRow key={activity.id} activity={activity} data={data} onViewDetails={viewDetails} />
+              ))}
+              <ListPagination pagination={activityPagination} />
+            </>
           )}
         </CardContent>
       </Card>
@@ -755,6 +765,12 @@ function StudentStatisticsPanel({ data }) {
   const students = data.studentStatistics?.students || []
   const totalParticipated = students.reduce((sum, student) => sum + Number(student.participatedActivityCount || 0), 0)
   const totalPoints = students.reduce((sum, student) => sum + Number(student.totalEarnedPoints || 0), 0)
+  const studentPagination = usePagination(students, [
+    data.studentStatisticFilters?.fromTime || "",
+    data.studentStatisticFilters?.toTime || "",
+    data.studentStatisticFilters?.className || "",
+    data.studentStatisticFilters?.department || "",
+  ])
 
   const update = (event) => {
     const { name, value } = event.target
@@ -853,7 +869,7 @@ function StudentStatisticsPanel({ data }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {students.map((student) => (
+                  {studentPagination.items.map((student) => (
                     <TableRow key={student.studentId || student.studentCode}>
                       <TableCell className="font-medium">{student.studentCode || student.studentId || "Chưa có"}</TableCell>
                       <TableCell>{student.fullName || "Chưa có"}</TableCell>
@@ -866,6 +882,7 @@ function StudentStatisticsPanel({ data }) {
                   ))}
                 </TableBody>
               </Table>
+              <ListPagination pagination={studentPagination} />
             </div>
           )}
         </CardContent>
@@ -884,6 +901,10 @@ function ReportsPanel({ data }) {
   const activitiesById = useMemo(() => {
     return Object.fromEntries(data.activities.map((activity) => [activity.id, activity]))
   }, [data.activities])
+  const reportPagination = usePagination(data.reports, [
+    data.reportFilters?.activityId || "",
+    data.reportFilters?.reportStatus || "",
+  ])
 
   const update = (event) => {
     const { name, value } = event.target
@@ -974,7 +995,7 @@ function ReportsPanel({ data }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.reports.map((report) => {
+                {reportPagination.items.map((report) => {
                   const statusKey = getStatusKey(report.reportStatus)
                   const canDownload = statusKey === "pending" || statusKey === "reviewing"
                   const canReviewDecision = statusKey === "reviewing"
@@ -1037,6 +1058,7 @@ function ReportsPanel({ data }) {
                 })}
               </TableBody>
             </Table>
+            <ListPagination pagination={reportPagination} />
           </div>
         )}
       </CardContent>

@@ -21,6 +21,7 @@ import {
   XCircle,
 } from "lucide-react"
 import { useOrganizerData } from "@/hooks/use-organizer-data"
+import { ListPagination, usePagination } from "@/components/list-pagination"
 import { PersonalProfilePanel } from "@/components/profile/personal-profile-panel"
 import { NotificationsPanel } from "@/components/notifications/notifications-panel"
 import { GuestDashboard } from "@/components/dashboards/guest-dashboard"
@@ -864,6 +865,7 @@ function ActivityDetailDialog({ activity, open, onOpenChange }) {
 
 function ActivityParticipantsDialog({ activity, data, open, onOpenChange }) {
   const registrations = activity ? data.registrationsByActivity[activity.id] || [] : []
+  const registrationsPagination = usePagination(registrations, [activity?.id || "", open ? "open" : "closed"])
   const loadRegistrations = data.loadRegistrations
 
   useEffect(() => {
@@ -896,7 +898,7 @@ function ActivityParticipantsDialog({ activity, data, open, onOpenChange }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {registrations.map((registration) => (
+                {registrationsPagination.items.map((registration) => (
                   <TableRow key={registration.id}>
                     <TableCell>
                       <div className="flex flex-col gap-1">
@@ -917,6 +919,7 @@ function ActivityParticipantsDialog({ activity, data, open, onOpenChange }) {
                 ))}
               </TableBody>
             </Table>
+            <ListPagination pagination={registrationsPagination} />
           </div>
         )}
       </DialogContent>
@@ -1027,6 +1030,11 @@ function MyActivitiesPanel({ data }) {
   const [viewingActivity, setViewingActivity] = useState(null)
   const [participantsActivity, setParticipantsActivity] = useState(null)
   const sortedActivities = useMemo(() => sortActivitiesWithEndedLast(data.activities), [data.activities])
+  const activitiesPagination = usePagination(sortedActivities, [
+    data.activityFilters?.keyword || "",
+    data.activityFilters?.status || "",
+    data.activityFilters?.location || "",
+  ])
   const hasActiveFilters = Boolean(data.activityFilters?.keyword || data.activityFilters?.status || data.activityFilters?.location)
 
   const handleDelete = async (activityId) => {
@@ -1074,20 +1082,23 @@ function MyActivitiesPanel({ data }) {
               {hasActiveFilters ? "Không tìm thấy hoạt động phù hợp." : "Chưa có hoạt động nào."}
             </div>
           ) : (
-            sortedActivities.map((activity) => (
-              <ActivityCard
-                key={activity.id}
-                activity={activity}
-                actionLoading={data.actionLoading}
-                onView={setViewingActivity}
-                onViewParticipants={setParticipantsActivity}
-                onExportParticipants={handleExportParticipants}
-                onEdit={setEditingActivity}
-                onSubmit={data.submitActivity}
-                onDelete={handleDelete}
-                onCancelRequest={handleCancelRequest}
-              />
-            ))
+            <>
+              {activitiesPagination.items.map((activity) => (
+                <ActivityCard
+                  key={activity.id}
+                  activity={activity}
+                  actionLoading={data.actionLoading}
+                  onView={setViewingActivity}
+                  onViewParticipants={setParticipantsActivity}
+                  onExportParticipants={handleExportParticipants}
+                  onEdit={setEditingActivity}
+                  onSubmit={data.submitActivity}
+                  onDelete={handleDelete}
+                  onCancelRequest={handleCancelRequest}
+                />
+              ))}
+              <ListPagination pagination={activitiesPagination} />
+            </>
           )}
         </CardContent>
       </Card>
@@ -1169,6 +1180,7 @@ function ActivitySelect({ activities, value, onChange, placeholder = "Chọn ho�
 function StudentsPanel({ data }) {
   const [selectedActivityId, setSelectedActivityId] = useState("")
   const registrations = selectedActivityId ? data.registrationsByActivity[selectedActivityId] || [] : []
+  const registrationsPagination = usePagination(registrations, [selectedActivityId])
   const loadRegistrations = data.loadRegistrations
 
   useEffect(() => {
@@ -1209,7 +1221,7 @@ function StudentsPanel({ data }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {registrations.map((registration) => {
+                {registrationsPagination.items.map((registration) => {
                   const isPending = getStatusKey(registration.status) === "pending"
                   return (
                     <TableRow key={registration.id}>
@@ -1241,6 +1253,7 @@ function StudentsPanel({ data }) {
                 })}
               </TableBody>
             </Table>
+            <ListPagination pagination={registrationsPagination} />
           </div>
         )}
       </CardContent>
@@ -1285,6 +1298,9 @@ function StudentsPanelV2({ data }) {
   })
   const approvedRegistrations = registrations.filter((registration) => getStatusKey(registration.status) === "approved")
   const rejectedRegistrations = registrations.filter((registration) => getStatusKey(registration.status) === "rejected")
+  const pendingPagination = usePagination(pendingRegistrations, [selectedActivityId, "pending"])
+  const approvedPagination = usePagination(approvedRegistrations, [selectedActivityId, "approved"])
+  const rejectedPagination = usePagination(rejectedRegistrations, [selectedActivityId, "rejected"])
 
   useEffect(() => {
     if (!isAllActivities && selectedActivityId) {
@@ -1454,7 +1470,10 @@ function StudentsPanelV2({ data }) {
               <CardTitle>Danh sách chờ duyệt</CardTitle>
               <CardDescription>Sinh viên mới đăng ký, cần BTC/CLB duyệt hoặc từ chối.</CardDescription>
             </CardHeader>
-            <CardContent>{renderRegistrationTable(pendingRegistrations, { showActions: true, showActivity: true })}</CardContent>
+            <CardContent>
+              {renderRegistrationTable(pendingPagination.items, { showActions: true, showActivity: true })}
+              <ListPagination pagination={pendingPagination} />
+            </CardContent>
           </Card>
 
           <Card>
@@ -1462,7 +1481,10 @@ function StudentsPanelV2({ data }) {
               <CardTitle>Danh sách đã duyệt</CardTitle>
               <CardDescription>Sinh viên đã được xác nhận tham gia hoạt động.</CardDescription>
             </CardHeader>
-            <CardContent>{renderRegistrationTable(approvedRegistrations, { showActivity: true })}</CardContent>
+            <CardContent>
+              {renderRegistrationTable(approvedPagination.items, { showActivity: true })}
+              <ListPagination pagination={approvedPagination} />
+            </CardContent>
           </Card>
 
           {rejectedRegistrations.length > 0 && (
@@ -1471,7 +1493,10 @@ function StudentsPanelV2({ data }) {
                 <CardTitle>Danh sách đã từ chối</CardTitle>
                 <CardDescription>Các đăng ký đã bị từ chối kèm lý do.</CardDescription>
               </CardHeader>
-              <CardContent>{renderRegistrationTable(rejectedRegistrations, { showRejectReason: true })}</CardContent>
+              <CardContent>
+                {renderRegistrationTable(rejectedPagination.items, { showRejectReason: true })}
+                <ListPagination pagination={rejectedPagination} />
+              </CardContent>
             </Card>
           )}
         </>
@@ -1488,6 +1513,7 @@ function AttendancePanel({ data }) {
   )
   const registrations = selectedActivityId ? data.registrationsByActivity[selectedActivityId] || [] : []
   const approvedRegistrations = registrations.filter((registration) => getStatusKey(registration.status) === "approved")
+  const attendancePagination = usePagination(approvedRegistrations, [selectedActivityId])
   const getAttendance = (registration) => data.attendanceByRegistration[registration.id] || {
     id: registration.attendanceId,
     registrationId: registration.id,
@@ -1569,7 +1595,7 @@ function AttendancePanel({ data }) {
               </div>
             )}
 
-            {approvedRegistrations.map((registration) => {
+            {attendancePagination.items.map((registration) => {
               const attendance = getAttendance(registration)
               const checkedIn = Boolean(attendance?.checkInTime)
               const present = attendance?.isPresent === true
@@ -1604,6 +1630,7 @@ function AttendancePanel({ data }) {
                 </div>
               )
             })}
+            <ListPagination pagination={attendancePagination} />
           </div>
         )}
       </CardContent>
@@ -1620,6 +1647,7 @@ function ReportsAndPointsPanel({ data }) {
     if (!selectedActivityId) return data.reports
     return data.reports.filter((report) => report.activityId === selectedActivityId)
   }, [data.reports, selectedActivityId])
+  const reportsPagination = usePagination(submittedReports, [selectedActivityId])
 
   const selectedActivity = selectedActivityId ? activitiesById[selectedActivityId] : null
   const latestReport = submittedReports[0]
@@ -1642,6 +1670,8 @@ function ReportsAndPointsPanel({ data }) {
     const att = getAttendance(registration)
     return att?.earnedPoints != null
   })
+  const pendingPointsPagination = usePagination(pendingPointsRegs, [selectedActivityId, "pending-points"])
+  const awardedPagination = usePagination(awardedRegs, [selectedActivityId, "awarded-points"])
   const loadRegistrations = data.loadRegistrations
 
   const submitReport = async (event) => {
@@ -1744,19 +1774,20 @@ function ReportsAndPointsPanel({ data }) {
                 <div>
                   <p className="mb-2 text-sm font-medium text-muted-foreground">Sinh viên chờ cấp điểm ({pendingPointsRegs.length})</p>
                   <div className="flex flex-wrap gap-2">
-                    {pendingPointsRegs.map((registration) => (
+                    {pendingPointsPagination.items.map((registration) => (
                       <Badge key={registration.id} variant="outline" className="bg-warning/10 text-warning border-warning/20">
                         {registration.studentId}
                       </Badge>
                     ))}
                   </div>
+                  <ListPagination pagination={pendingPointsPagination} />
                 </div>
               )}
               {awardedRegs.length > 0 && (
                 <div>
                   <p className="mb-2 text-sm font-medium text-muted-foreground">Đã cấp điểm ({awardedRegs.length})</p>
                   <div className="flex flex-wrap gap-2">
-                    {awardedRegs.map((registration) => {
+                    {awardedPagination.items.map((registration) => {
                       const att = getAttendance(registration)
                       return (
                         <Badge key={registration.id} variant="outline" className="bg-success/10 text-success border-success/20">
@@ -1765,6 +1796,7 @@ function ReportsAndPointsPanel({ data }) {
                       )
                     })}
                   </div>
+                  <ListPagination pagination={awardedPagination} />
                 </div>
               )}
               {!reportApproved && pendingPointsRegs.length > 0 && (
@@ -1816,7 +1848,7 @@ function ReportsAndPointsPanel({ data }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {submittedReports.map((report) => {
+                  {reportsPagination.items.map((report) => {
                     const activity = activitiesById[report.activityId]
                     const statusKey = getStatusKey(report.reportStatus)
                     const canCancelReport = statusKey === "pending" || statusKey === "approved"
@@ -1853,6 +1885,7 @@ function ReportsAndPointsPanel({ data }) {
                   })}
                 </TableBody>
               </Table>
+              <ListPagination pagination={reportsPagination} />
             </div>
           )}
         </CardContent>

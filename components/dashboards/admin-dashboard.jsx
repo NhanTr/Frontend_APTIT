@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-context"
 import { PersonalProfilePanel } from "@/components/profile/personal-profile-panel"
 import { NotificationsPanel, SentNotificationsPanel } from "@/components/notifications/notifications-panel"
 import { ImportUsersDialog } from "@/components/admin/import-users-dialog"
+import { ListPagination, usePagination } from "@/components/list-pagination"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -311,6 +312,7 @@ function UsersPanel() {
   }
 
   const rows = Array.isArray(users.data) ? users.data : []
+  const rowsPagination = usePagination(rows, [query, roleFilter, statusFilter])
   const canCreateUser =
     form.username.trim() &&
     form.email.trim() &&
@@ -355,7 +357,7 @@ function UsersPanel() {
             <Table>
               <TableHeader><TableRow><TableHead>Tên đăng nhập</TableHead><TableHead>Email</TableHead><TableHead>Vai trò</TableHead><TableHead>Trạng thái</TableHead><TableHead className="text-right">Thao tác</TableHead></TableRow></TableHeader>
               <TableBody>
-                {rows.map((user) => (
+                {rowsPagination.items.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell><div className="font-medium">{user.username}</div><div className="text-xs text-muted-foreground">{user.id}</div></TableCell>
                     <TableCell>{user.email || "-"}</TableCell>
@@ -379,6 +381,7 @@ function UsersPanel() {
                 ))}
               </TableBody>
             </Table>
+            <ListPagination pagination={rowsPagination} />
           </div>
           {users.loading && <div className="p-4 text-sm text-muted-foreground">Đang tải...</div>}
         </CardContent>
@@ -672,6 +675,7 @@ function SettingsPanel() {
   const [backupActionError, setBackupActionError] = useState(null)
   const [restoring, setRestoring] = useState(false)
   const visibleConfigs = (configs.data || []).filter((cfg) => !HIDDEN_SYSTEM_CONFIG_KEYS.has(cfg.key))
+  const configsPagination = usePagination(visibleConfigs, [visibleConfigs.length])
 
   async function updateConfig(key, value) {
     await api.request(`/api/admin/system-configs/${encodeURIComponent(key)}`, { method: "PUT", body: JSON.stringify({ value }) })
@@ -711,7 +715,15 @@ function SettingsPanel() {
     <div className="grid gap-4">
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2"><Settings className="size-5" /> Cấu hình hệ thống</CardTitle><CardDescription>Cập nhật quy định vận hành mà không cần sửa mã nguồn.</CardDescription></CardHeader>
-        <CardContent><ErrorBanner message={configs.error} />{configs.loading ? "Đang tải..." : <div className="grid gap-3">{visibleConfigs.map((cfg) => <ConfigRow key={cfg.key} config={cfg} onSave={updateConfig} />)}</div>}</CardContent>
+        <CardContent>
+          <ErrorBanner message={configs.error} />
+          {configs.loading ? "Đang tải..." : (
+            <div>
+              <div className="grid gap-3">{configsPagination.items.map((cfg) => <ConfigRow key={cfg.key} config={cfg} onSave={updateConfig} />)}</div>
+              <ListPagination pagination={configsPagination} />
+            </div>
+          )}
+        </CardContent>
       </Card>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between"><div><CardTitle className="flex items-center gap-2"><DatabaseBackup className="size-5" /> Sao lưu dữ liệu</CardTitle><CardDescription>Tạo và xem danh sách bản sao lưu.</CardDescription></div><Button onClick={createBackup}>Tạo bản sao lưu</Button></CardHeader>
@@ -773,6 +785,8 @@ function ConfigRow({ config, onSave }) {
 }
 
 function BackupTable({ rows = [], loading, error, onRestore }) {
+  const rowsPagination = usePagination(rows, [rows.length])
+
   return (
     <div className="grid gap-3">
       <ErrorBanner message={error} />
@@ -788,7 +802,7 @@ function BackupTable({ rows = [], loading, error, onRestore }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((backup) => (
+              {rowsPagination.items.map((backup) => (
                 <TableRow key={backup.fileName}>
                   <TableCell className="font-medium">{backup.fileName}</TableCell>
                   <TableCell>{backup.size}</TableCell>
@@ -802,6 +816,7 @@ function BackupTable({ rows = [], loading, error, onRestore }) {
               ))}
             </TableBody>
           </Table>
+          <ListPagination pagination={rowsPagination} />
         </div>
       )}
     </div>
@@ -819,12 +834,13 @@ function GenericJsonCard({ title, description, data, loading, error }) {
 
 function GenericTable({ title, description, rows = [], loading, error }) {
   const columns = useMemo(() => Array.from(new Set(rows.flatMap((row) => Object.keys(row || {})))).slice(0, 6), [rows])
+  const rowsPagination = usePagination(rows, [rows.length])
   return (
     <div className="grid gap-3">
       {title && <SectionHeader title={title} description={description} />}
       <ErrorBanner message={error} />
       {loading ? <div className="text-sm text-muted-foreground">Đang tải...</div> : rows.length === 0 ? <div className="text-sm text-muted-foreground">Không có dữ liệu.</div> : (
-        <div className="overflow-x-auto"><Table><TableHeader><TableRow>{columns.map((col) => <TableHead key={col}>{col}</TableHead>)}</TableRow></TableHeader><TableBody>{rows.map((row, index) => <TableRow key={row.id || index}>{columns.map((col) => <TableCell key={col} className="max-w-64 truncate">{String(row[col] ?? "-")}</TableCell>)}</TableRow>)}</TableBody></Table></div>
+        <div className="overflow-x-auto"><Table><TableHeader><TableRow>{columns.map((col) => <TableHead key={col}>{col}</TableHead>)}</TableRow></TableHeader><TableBody>{rowsPagination.items.map((row, index) => <TableRow key={row.id || index}>{columns.map((col) => <TableCell key={col} className="max-w-64 truncate">{String(row[col] ?? "-")}</TableCell>)}</TableRow>)}</TableBody></Table><ListPagination pagination={rowsPagination} /></div>
       )}
     </div>
   )
