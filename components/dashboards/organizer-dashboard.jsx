@@ -111,6 +111,19 @@ function toDateTimeLocal(value) {
   return value ? String(value).slice(0, 16) : ""
 }
 
+function getCurrentDateTimeLocal() {
+  const date = new Date()
+  const pad = (value) => String(value).padStart(2, "0")
+
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function getDateTimeValue(value) {
+  if (!value) return null
+  const time = new Date(value).getTime()
+  return Number.isFinite(time) ? time : null
+}
+
 function getProgress(activity) {
   if (!activity?.capacity) return 0
   return Math.min(100, (Number(activity.enrolled || 0) / Number(activity.capacity)) * 100)
@@ -450,11 +463,41 @@ function buildFormFromActivity(activity) {
   }
 }
 
+function validateActivityTimeFields(form, minTime) {
+  const now = getDateTimeValue(minTime)
+  const startTime = getDateTimeValue(form.startTime)
+  const endTime = getDateTimeValue(form.endTime)
+  const registrationDeadline = getDateTimeValue(form.registrationDeadline)
+
+  if (startTime !== null && now !== null && startTime < now) {
+    return "Thời gian bắt đầu không được ở quá khứ."
+  }
+
+  if (endTime !== null && now !== null && endTime < now) {
+    return "Thời gian kết thúc không được ở quá khứ."
+  }
+
+  if (registrationDeadline !== null && now !== null && registrationDeadline < now) {
+    return "Hạn đăng ký không được ở quá khứ."
+  }
+
+  if (startTime !== null && endTime !== null && startTime >= endTime) {
+    return "Thời gian bắt đầu phải nhỏ hơn thời gian kết thúc."
+  }
+
+  if (registrationDeadline !== null && startTime !== null && registrationDeadline >= startTime) {
+    return "Hạn đăng ký phải nhỏ hơn thời gian bắt đầu."
+  }
+
+  return ""
+}
+
 function ActivityForm({ initialActivity, actionLoading, rooms = [], onCheckScheduleConflicts, onSubmit, onCancel }) {
   const [form, setForm] = useState(() => buildFormFromActivity(initialActivity))
   const [scheduleConflicts, setScheduleConflicts] = useState([])
   const [checkingSchedule, setCheckingSchedule] = useState(false)
   const isEditing = !!initialActivity
+  const minDateTime = useMemo(() => getCurrentDateTimeLocal(), [initialActivity])
 
   useEffect(() => {
     setForm(buildFormFromActivity(initialActivity))
@@ -474,7 +517,10 @@ function ActivityForm({ initialActivity, actionLoading, rooms = [], onCheckSched
   }, [rooms])
 
   useEffect(() => {
-    if (!onCheckScheduleConflicts || !form.roomId || !form.startTime || !form.endTime) {
+    const startTime = getDateTimeValue(form.startTime)
+    const endTime = getDateTimeValue(form.endTime)
+
+    if (!onCheckScheduleConflicts || !form.roomId || !form.startTime || !form.endTime || startTime >= endTime) {
       setScheduleConflicts([])
       setCheckingSchedule(false)
       return
@@ -517,6 +563,12 @@ function ActivityForm({ initialActivity, actionLoading, rooms = [], onCheckSched
       return
     }
 
+    const timeError = validateActivityTimeFields(form, getCurrentDateTimeLocal())
+    if (timeError) {
+      window.alert(timeError)
+      return
+    }
+
     await onSubmit(buildPayload(form), { submitAfterCreate })
     if (!isEditing) {
       setForm(emptyForm)
@@ -536,11 +588,25 @@ function ActivityForm({ initialActivity, actionLoading, rooms = [], onCheckSched
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="startTime">Bắt đầu *</Label>
-          <Input id="startTime" name="startTime" type="datetime-local" value={form.startTime} onChange={handleChange} />
+          <Input
+            id="startTime"
+            name="startTime"
+            type="datetime-local"
+            min={form.registrationDeadline || minDateTime}
+            value={form.startTime}
+            onChange={handleChange}
+          />
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="endTime">Kết thúc *</Label>
-          <Input id="endTime" name="endTime" type="datetime-local" value={form.endTime} onChange={handleChange} />
+          <Input
+            id="endTime"
+            name="endTime"
+            type="datetime-local"
+            min={form.startTime || minDateTime}
+            value={form.endTime}
+            onChange={handleChange}
+          />
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="registrationDeadline">Hạn đăng ký</Label>
@@ -548,6 +614,8 @@ function ActivityForm({ initialActivity, actionLoading, rooms = [], onCheckSched
             id="registrationDeadline"
             name="registrationDeadline"
             type="datetime-local"
+            min={minDateTime}
+            max={form.startTime || undefined}
             value={form.registrationDeadline}
             onChange={handleChange}
           />
