@@ -22,14 +22,38 @@ function getRegistrationActivityId(registration) {
   return registration.activityId || registration.activity_id || registration.id
 }
 
+function transformActivity(rawActivity) {
+  const activity = rawActivity?.result || rawActivity
+  if (!activity) return null
+
+  const startDate = activity.startTime ? new Date(activity.startTime) : null
+
+  return {
+    id: activity.id,
+    title: activity.title,
+    description: activity.description || "",
+    status: String(activity.status || "").toLowerCase(),
+    date: startDate && !Number.isNaN(startDate.getTime()) ? startDate.toISOString().split("T")[0] : "",
+    time: startDate && !Number.isNaN(startDate.getTime()) ? startDate.toTimeString().slice(0, 5) : "",
+    location: activity.location || "",
+    capacity: activity.maxParticipants ?? 0,
+    enrolled: activity.currentParticipants ?? 0,
+    startTime: activity.startTime,
+    endTime: activity.endTime,
+    organizer: activity.organizerName,
+  }
+}
+
 export function StudentDashboard({ activeSection = "browse-activities" }) {
   const { activities, loadMore, currentPage, hasMore, loading, enrolled, applyFilters } = useRole()
   const { initialFilters, updateUrlFilters } = useUrlFilterSync()
   const [filters, setFilters] = useState(() => initialFilters)
   const [localEnrolled, setLocalEnrolled] = useState(enrolled || [])
+  const [enrollmentActivities, setEnrollmentActivities] = useState([])
   const [registrationStatusByActivity, setRegistrationStatusByActivity] = useState({})
   const [registrationByActivity, setRegistrationByActivity] = useState({})
   const {
+    makeAuthenticatedRequest,
     enrollingActivityIds,
     unenrollingActivityIds,
     checkingInRegistrationIds,
@@ -60,8 +84,9 @@ export function StudentDashboard({ activeSection = "browse-activities" }) {
   const refreshRegistrations = useCallback(async () => {
     const registrations = await getUserRegistrations()
     const activeRegistrations = registrations.filter(isActiveRegistration)
+    const activeActivityIds = activeRegistrations.map(getRegistrationActivityId).filter(Boolean)
 
-    setLocalEnrolled(activeRegistrations.map(getRegistrationActivityId).filter(Boolean))
+    setLocalEnrolled(activeActivityIds)
     setRegistrationByActivity(
       Object.fromEntries(
         activeRegistrations
@@ -79,7 +104,32 @@ export function StudentDashboard({ activeSection = "browse-activities" }) {
           .filter(([activityId]) => Boolean(activityId)),
       ),
     )
-  }, [getUserRegistrations])
+
+    // My Enrollments should not depend on paginated/filtered browse activities.
+    const activityById = new Map(activities.map((activity) => [activity.id, activity]))
+    const resolvedActivities = activeActivityIds
+      .map((activityId) => activityById.get(activityId))
+      .filter(Boolean)
+
+    const missingActivityIds = activeActivityIds.filter((activityId) => !activityById.has(activityId))
+
+    if (missingActivityIds.length > 0) {
+      const fetchedMissingActivities = await Promise.all(
+        missingActivityIds.map(async (activityId) => {
+          const response = await makeAuthenticatedRequest(`/api/activities/${activityId}`)
+          if (!response?.ok) return null
+
+          const data = await response.json().catch(() => null)
+          return transformActivity(data)
+        }),
+      )
+
+      setEnrollmentActivities([...resolvedActivities, ...fetchedMissingActivities.filter(Boolean)])
+      return
+    }
+
+    setEnrollmentActivities(resolvedActivities)
+  }, [activities, getUserRegistrations, makeAuthenticatedRequest])
 
   useEffect(() => {
     refreshRegistrations()
@@ -139,7 +189,7 @@ export function StudentDashboard({ activeSection = "browse-activities" }) {
       )}
       {activeSection === "my-enrollments" && (
         <MyEnrollments
-          activities={activities}
+          activities={enrollmentActivities}
           enrolled={localEnrolled}
           registrationStatusByActivity={registrationStatusByActivity}
           registrationByActivity={registrationByActivity}
