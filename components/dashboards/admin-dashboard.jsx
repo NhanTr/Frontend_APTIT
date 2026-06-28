@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { PersonalProfilePanel } from "@/components/profile/personal-profile-panel"
 import { NotificationsPanel, SentNotificationsPanel } from "@/components/notifications/notifications-panel"
+import { ImportUsersDialog } from "@/components/admin/import-users-dialog"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -161,8 +162,13 @@ function useAdminApi() {
       let message = text
       try {
         const parsed = JSON.parse(text)
-        message = parsed.message || parsed.error || text
-      } catch {}
+        message = parsed.message || parsed.error || parsed.result?.message || text
+      } catch {
+        // Non-JSON error body — keep raw text
+        if (!message || /^(undefined|null|<!doctype)/i.test(message.trim())) {
+          message = `Yêu cầu thất bại (HTTP ${response.status})`
+        }
+      }
       throw new Error(message || `HTTP ${response.status}`)
     }
 
@@ -238,6 +244,7 @@ function UsersPanel() {
   const [roleFilter, setRoleFilter] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
   const [formOpen, setFormOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const [form, setForm] = useState(emptyUserForm)
   const [busyId, setBusyId] = useState(null)
 
@@ -286,6 +293,10 @@ function UsersPanel() {
     }
   }
 
+  function openImport() {
+    setImportOpen(true)
+  }
+
   const rows = Array.isArray(users.data) ? users.data : []
   const canCreateUser =
     form.username.trim() &&
@@ -301,7 +312,12 @@ function UsersPanel() {
       <SectionHeader
         title="Quản lý người dùng"
         description="Tạo tài khoản, lọc người dùng, phân quyền và khóa tài khoản."
-        action={<Button onClick={() => setFormOpen(true)}><Users className="mr-2 size-4" /> Thêm người dùng</Button>}
+        action={
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={openImport}><FileText className="mr-2 size-4" /> Import CSV</Button>
+            <Button onClick={() => setFormOpen(true)}><Users className="mr-2 size-4" /> Thêm người dùng</Button>
+          </div>
+        }
       />
       <Card>
         <CardContent className="grid gap-3 p-4 md:grid-cols-4">
@@ -429,6 +445,12 @@ function UsersPanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ImportUsersDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        api={api}
+        onImported={() => users.refresh()}
+      />
     </div>
   )
 }

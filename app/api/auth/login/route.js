@@ -28,28 +28,45 @@ export async function POST(req) {
     })
 
     if (!response.ok) {
-      const error = await response.json()
-      console.error('❌ Backend login error:', error)
+      let backendMessage = ''
+      try {
+        const error = await response.json()
+        backendMessage = error?.message || error?.error || ''
+      } catch {
+        // Backend returned non-JSON error body (e.g. HTML or empty); fall through.
+      }
+      console.error('❌ Backend login error:', backendMessage || `HTTP ${response.status}`)
       return new Response(
-        JSON.stringify({ 
-          error: error.message || 'Đăng nhập thất bại'
-        }), 
+        JSON.stringify({
+          error: backendMessage || 'Sai tên đăng nhập hoặc mật khẩu',
+        }),
         { status: response.status }
       )
     }
 
-    const data = await response.json()
-    
+    let data
+    try {
+      data = await response.json()
+    } catch (parseErr) {
+      console.error('❌ Backend returned non-JSON login response:', parseErr.message)
+      return new Response(
+        JSON.stringify({
+          error: 'Phản hồi từ máy chủ không hợp lệ. Vui lòng thử lại sau.',
+        }),
+        { status: 502 }
+      )
+    }
+
     // Backend format: { code, message, result: { token, refreshToken, authenticated } }
-    const authResult = data.result
-    
+    const authResult = data?.result
+
     if (!authResult?.token || !authResult?.authenticated) {
       console.error('❌ Missing auth fields:', authResult)
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: 'Backend trả về dữ liệu không đầy đủ',
           received: authResult
-        }), 
+        }),
         { status: 400 }
       )
     }

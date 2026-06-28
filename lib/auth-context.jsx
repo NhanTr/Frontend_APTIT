@@ -64,7 +64,14 @@ export function AuthProvider({ children }) {
         return false
       }
 
-      const data = await response.json()
+      let data
+      try {
+        data = await response.json()
+      } catch (parseErr) {
+        console.error('❌ Refresh response was not valid JSON:', parseErr.message)
+        await logout()
+        return false
+      }
       
       if (!data.accessToken) {
         console.error('❌ No new accessToken in refresh response')
@@ -172,14 +179,21 @@ export function AuthProvider({ children }) {
         body: JSON.stringify({ username, password })
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        console.error('❌ Login failed:', errorData.error)
-        throw new Error(errorData.error || 'Đăng nhập thất bại')
+      let payload = null
+      try {
+        payload = await response.json()
+      } catch (parseErr) {
+        console.error('❌ Login response was not valid JSON:', parseErr.message)
+        throw new Error('Phản hồi từ máy chủ không hợp lệ. Vui lòng thử lại.')
       }
 
-      const data = await response.json()
-      
+      if (!response.ok) {
+        console.error('❌ Login failed:', payload?.error)
+        throw new Error(payload?.error || 'Sai tên đăng nhập hoặc mật khẩu')
+      }
+
+      const data = payload
+
       if (!data.accessToken) {
         console.error('❌ No accessToken in response')
         throw new Error('Lỗi: Server không trả về accessToken')
