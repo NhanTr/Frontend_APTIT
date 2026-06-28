@@ -296,6 +296,12 @@ export function SentNotificationsPanel({ title = "Thông báo đã gửi", descr
     loadNotifications()
   }, [loadNotifications])
 
+  useEffect(() => {
+    const handler = () => loadNotifications()
+    window.addEventListener("notifications:refresh", handler)
+    return () => window.removeEventListener("notifications:refresh", handler)
+  }, [loadNotifications])
+
   const groupedNotifications = useMemo(() => groupSentNotifications(notifications), [notifications])
 
   const viewDetail = async (notification) => {

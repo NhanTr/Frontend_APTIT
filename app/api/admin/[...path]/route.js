@@ -32,14 +32,15 @@ async function proxyAdminRequest(req, { params }) {
       body: hasBody ? await req.text() : undefined,
     })
 
+    if (response.status === 204 || response.status === 205) {
+      return new Response(null, { status: response.status, headers: {} })
+    }
     const responseContentType = response.headers.get('content-type') || 'application/json'
     const responseBody = await response.arrayBuffer()
-
+    const responseHeaders = { 'Content-Type': responseContentType }
     return new Response(responseBody, {
       status: response.status,
-      headers: {
-        'Content-Type': responseContentType,
-      },
+      headers: responseHeaders,
     })
   } catch (error) {
     console.error('Admin proxy error:', error)

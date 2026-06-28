@@ -172,9 +172,14 @@ function useAdminApi() {
       throw new Error(message || `HTTP ${response.status}`)
     }
 
+    if (response.status === 204 || response.status === 205) {
+      return null
+    }
     const contentType = response.headers.get("content-type") || ""
     if (contentType.includes("application/json")) {
-      return response.json()
+      const text = await response.text()
+      if (!text) return null
+      return JSON.parse(text)
     }
     return response.blob()
   }
@@ -283,10 +288,18 @@ function UsersPanel() {
     users.refresh()
   }
 
-  async function deactivateUser(userId) {
-    setBusyId(userId)
+  async function toggleUserStatus(user) {
+    setBusyId(user.id)
     try {
-      await api.request(`/api/admin/users/${userId}`, { method: "DELETE" })
+      const isInactive = String(user.status || "").toUpperCase() === "INACTIVE"
+      if (isInactive) {
+        await api.request(`/api/admin/users/${user.id}`, {
+          method: "PUT",
+          body: JSON.stringify({ status: "ACTIVE" }),
+        })
+      } else {
+        await api.request(`/api/admin/users/${user.id}`, { method: "DELETE" })
+      }
       users.refresh()
     } finally {
       setBusyId(null)
@@ -352,7 +365,16 @@ function UsersPanel() {
                       </Badge>
                     </TableCell>
                     <TableCell><Badge variant="outline" className={getStatusClass(user.status)}>{user.status || "-"}</Badge></TableCell>
-                    <TableCell className="text-right"><Button size="sm" variant="outline" disabled={busyId === user.id} onClick={() => deactivateUser(user.id)}>Khóa</Button></TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        size="sm"
+                        variant={String(user.status || "").toUpperCase() === "INACTIVE" ? "default" : "outline"}
+                        disabled={busyId === user.id}
+                        onClick={() => toggleUserStatus(user)}
+                      >
+                        {String(user.status || "").toUpperCase() === "INACTIVE" ? "Mở khóa" : "Khóa"}
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -559,6 +581,9 @@ function AdminNotificationSenderPanel() {
 
       setResult(response)
       resetForm()
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("notifications:refresh"))
+      }
     } catch (err) {
       setError(err.message || "Gửi thông báo thất bại")
     }
