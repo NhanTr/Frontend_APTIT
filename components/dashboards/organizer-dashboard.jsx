@@ -169,6 +169,17 @@ function attendanceBadge(registration) {
   return <Badge variant="outline" className="bg-muted text-muted-foreground border-border">Chưa điểm danh</Badge>
 }
 
+function pointsBadge(registration, activity) {
+  const points = registration.earnedPoints
+  if (points != null && points !== undefined) {
+    return <Badge variant="outline" className="bg-success/10 text-success border-success/20">{points} điểm</Badge>
+  }
+  if (registration.isPresent === true) {
+    return <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">Chờ duyệt</Badge>
+  }
+  return <span className="text-sm text-muted-foreground">—</span>
+}
+
 function buildPayload(form) {
   const payload = {
     title: form.title.trim(),
@@ -602,7 +613,7 @@ function ActivityParticipantsDialog({ activity, data, open, onOpenChange }) {
                     </TableCell>
                     <TableCell>{registrationBadge(registration.status)}</TableCell>
                     <TableCell>{attendanceBadge(registration)}</TableCell>
-                    <TableCell className="text-right font-semibold">{registration.earnedPoints ?? 0}</TableCell>
+                    <TableCell>{pointsBadge(registration, activity)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -1163,6 +1174,15 @@ function AttendancePanel({ data }) {
   }
   const checkedInCount = approvedRegistrations.filter((registration) => Boolean(getAttendance(registration)?.checkInTime)).length
   const presentCount = approvedRegistrations.filter((registration) => getAttendance(registration)?.isPresent === true).length
+  const awardedCount = approvedRegistrations.filter((registration) => getAttendance(registration)?.earnedPoints != null).length
+  const pendingPointsCount = approvedRegistrations.filter((registration) => {
+    const att = getAttendance(registration)
+    return att?.isPresent === true && att?.earnedPoints == null
+  }).length
+  const selectedActivity = data.activities.find((a) => a.id === selectedActivityId)
+  const activityReports = data.reports.filter((r) => r.activityId === selectedActivityId)
+  const latestReport = activityReports[0]
+  const reportApproved = latestReport && getStatusKey(latestReport.reportStatus) === "approved"
   const loadRegistrations = data.loadRegistrations
 
   useEffect(() => {
@@ -1194,7 +1214,7 @@ function AttendancePanel({ data }) {
           <div className="py-10 text-center text-sm text-muted-foreground">Chưa có đăng ký đã duyệt.</div>
         ) : (
           <div className="flex flex-col gap-3">
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-lg border border-border bg-background px-3 py-2">
                 <p className="text-xs text-muted-foreground">Tổng đã duyệt</p>
                 <p className="text-xl font-semibold text-card-foreground">{approvedRegistrations.length}</p>
@@ -1203,16 +1223,34 @@ function AttendancePanel({ data }) {
                 <p className="text-xs text-muted-foreground">Đã check-in</p>
                 <p className="text-xl font-semibold text-success">{checkedInCount}</p>
               </div>
-              <div className="rounded-lg border border-border bg-background px-3 py-2">
-                <p className="text-xs text-muted-foreground">Co mat</p>
-                <p className="text-xl font-semibold text-card-foreground">{presentCount}</p>
+              <div className="rounded-lg border border-success/20 bg-success/5 px-3 py-2">
+                <p className="text-xs text-muted-foreground">Có mặt</p>
+                <p className="text-xl font-semibold text-success">{presentCount}</p>
+              </div>
+              <div className="rounded-lg border border-warning/20 bg-warning/5 px-3 py-2">
+                <p className="text-xs text-muted-foreground">Đã cấp điểm</p>
+                <p className="text-xl font-semibold text-success">{awardedCount}</p>
               </div>
             </div>
+
+            {pendingPointsCount > 0 && !reportApproved && (
+              <div className="rounded-lg border border-warning/20 bg-warning/5 px-3 py-2 text-sm">
+                <p className="font-medium text-card-foreground">
+                  {pendingPointsCount} sinh viên có mặt — chờ báo cáo được duyệt để cấp điểm.
+                </p>
+                <p className="text-muted-foreground">
+                  {latestReport
+                    ? `Báo cáo hiện tại: ${statusBadge(latestReport.reportStatus)?.props?.children}. Vui lòng đợi manager duyệt báo cáo.`
+                    : "Chưa có báo cáo. Vui lòng nộp báo cáo và đợi manager duyệt."}
+                </p>
+              </div>
+            )}
+
             {approvedRegistrations.map((registration) => {
               const attendance = getAttendance(registration)
               const checkedIn = Boolean(attendance?.checkInTime)
               const present = attendance?.isPresent === true
-              const checked = present
+              const hasPoints = attendance?.earnedPoints != null
               return (
                 <div
                   key={registration.id}
@@ -1236,8 +1274,9 @@ function AttendancePanel({ data }) {
                       aria-label={`Điểm danh ${registration.studentId}`}
                     />
                     <Badge variant="outline" className={present ? "bg-success/10 text-success border-success/20" : "text-muted-foreground"}>
-                      {checked ? "Có mặt" : "Chưa điểm danh"}
+                      {present ? "Có mặt" : "Chưa điểm danh"}
                     </Badge>
+                    {pointsBadge(registration, selectedActivity)}
                   </div>
                 </div>
               )
@@ -1259,6 +1298,29 @@ function ReportsAndPointsPanel({ data }) {
     return data.reports.filter((report) => report.activityId === selectedActivityId)
   }, [data.reports, selectedActivityId])
 
+  const selectedActivity = selectedActivityId ? activitiesById[selectedActivityId] : null
+  const latestReport = submittedReports[0]
+  const reportApproved = latestReport && getStatusKey(latestReport.reportStatus) === "approved"
+
+  const registrations = selectedActivityId ? data.registrationsByActivity[selectedActivityId] || [] : []
+  const approvedRegistrations = registrations.filter((registration) => getStatusKey(registration.status) === "approved")
+  const getAttendance = (registration) => data.attendanceByRegistration[registration.id] || {
+    id: registration.attendanceId,
+    registrationId: registration.id,
+    isPresent: registration.isPresent,
+    checkInTime: registration.checkInTime,
+    earnedPoints: registration.earnedPoints,
+  }
+  const pendingPointsRegs = approvedRegistrations.filter((registration) => {
+    const att = getAttendance(registration)
+    return att?.isPresent === true && att?.earnedPoints == null
+  })
+  const awardedRegs = approvedRegistrations.filter((registration) => {
+    const att = getAttendance(registration)
+    return att?.earnedPoints != null
+  })
+  const loadRegistrations = data.loadRegistrations
+
   const submitReport = async (event) => {
     event.preventDefault()
     if (!selectedActivityId || !reportFile) {
@@ -1275,6 +1337,27 @@ function ReportsAndPointsPanel({ data }) {
     if (!window.confirm("Hủy nộp báo cáo này?")) return
     await data.cancelReport(report.id)
   }
+
+  const awardPointsForAll = async () => {
+    if (!reportApproved) {
+      window.alert("Báo cáo phải được manager duyệt trước khi cấp điểm.")
+      return
+    }
+    if (pendingPointsRegs.length === 0) {
+      window.alert("Không có sinh viên nào chờ cấp điểm.")
+      return
+    }
+    if (!window.confirm(`Cấp điểm cho ${pendingPointsRegs.length} sinh viên có mặt?`)) return
+    for (const registration of pendingPointsRegs) {
+      await data.awardPoints(registration.id, "")
+    }
+  }
+
+  useEffect(() => {
+    if (selectedActivityId) {
+      loadRegistrations(selectedActivityId)
+    }
+  }, [selectedActivityId, loadRegistrations])
 
   return (
     <div className="flex flex-col gap-4">
@@ -1305,6 +1388,78 @@ function ReportsAndPointsPanel({ data }) {
               Nộp báo cáo
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle>Cấp điểm sinh viên</CardTitle>
+            <CardDescription>
+              Điểm chỉ được cấp khi báo cáo hoạt động đã được manager duyệt.
+            </CardDescription>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={awardPointsForAll}
+            disabled={data.actionLoading || !reportApproved || pendingPointsRegs.length === 0}
+            className="shrink-0"
+          >
+            <Award className="mr-2 size-4" />
+            Cấp điểm cho {pendingPointsRegs.length} SV
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {pendingPointsRegs.length === 0 && awardedRegs.length === 0 ? (
+            <div className="py-6 text-center text-sm text-muted-foreground">
+              Chưa có sinh viên nào có mặt hoặc chưa chọn hoạt động.
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {pendingPointsRegs.length > 0 && (
+                <div>
+                  <p className="mb-2 text-sm font-medium text-muted-foreground">Sinh viên chờ cấp điểm ({pendingPointsRegs.length})</p>
+                  <div className="flex flex-wrap gap-2">
+                    {pendingPointsRegs.map((registration) => (
+                      <Badge key={registration.id} variant="outline" className="bg-warning/10 text-warning border-warning/20">
+                        {registration.studentId}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {awardedRegs.length > 0 && (
+                <div>
+                  <p className="mb-2 text-sm font-medium text-muted-foreground">Đã cấp điểm ({awardedRegs.length})</p>
+                  <div className="flex flex-wrap gap-2">
+                    {awardedRegs.map((registration) => {
+                      const att = getAttendance(registration)
+                      return (
+                        <Badge key={registration.id} variant="outline" className="bg-success/10 text-success border-success/20">
+                          {registration.studentId}: {att?.earnedPoints ?? 0} điểm
+                        </Badge>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+              {!reportApproved && pendingPointsRegs.length > 0 && (
+                <div className="rounded-md border border-warning/20 bg-warning/5 px-3 py-2 text-sm">
+                  <p className="font-medium text-card-foreground">
+                    {latestReport
+                      ? `Báo cáo hiện tại đang ở trạng thái "${latestReport.reportStatus}". Vui lòng đợi manager duyệt báo cáo để cấp điểm.`
+                      : "Chưa có báo cáo. Vui lòng nộp báo cáo và đợi manager duyệt để cấp điểm."}
+                  </p>
+                </div>
+              )}
+              {reportApproved && pendingPointsRegs.length > 0 && (
+                <div className="rounded-md border border-success/20 bg-success/5 px-3 py-2 text-sm">
+                  <p className="font-medium text-success">Báo cáo đã được duyệt. Có thể cấp điểm cho {pendingPointsRegs.length} sinh viên.</p>
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
