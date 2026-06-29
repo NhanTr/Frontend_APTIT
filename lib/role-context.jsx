@@ -14,6 +14,8 @@ const emptyFilters = {
   location: "",
 }
 
+const activityFetchSize = 1000
+
 function normalizeFilters(value = {}) {
   return {
     status: value.status || "",
@@ -44,7 +46,7 @@ export function RoleProvider({ children }) {
   
   // Pagination state (0-based page numbering for backend)
   const [currentPage, setCurrentPage] = useState(0)
-  const [pageSize] = useState(10)
+  const [pageSize] = useState(activityFetchSize)
   const [totalPages, setTotalPages] = useState(1)
   const [hasMore, setHasMore] = useState(true)
 

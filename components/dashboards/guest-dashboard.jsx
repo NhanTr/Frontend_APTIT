@@ -33,9 +33,22 @@ function isApprovedActivity(activity) {
   return ["approved", "ongoing", "closed", "completed"].includes(String(activity?.status || "").toLowerCase())
 }
 
-function BrowseActivitiesGuest({ activities, currentPage, hasMore, onLoadMore, loading }) {
+function BrowseActivitiesGuest({ activities }) {
   const [selectedActivity, setSelectedActivity] = useState(null)
-  const approvedActivities = activities.filter(isApprovedActivity)
+  const getActivityTime = (activity) => {
+    const startTime = activity.startTime ? new Date(activity.startTime).getTime() : null
+    return Number.isFinite(startTime) ? startTime : 0
+  }
+  const approvedActivities = activities
+    .filter(isApprovedActivity)
+    .map((activity, index) => ({ activity, index }))
+    .sort((left, right) => {
+      const timeDiff = getActivityTime(right.activity) - getActivityTime(left.activity)
+
+      if (timeDiff !== 0) return timeDiff
+      return left.index - right.index
+    })
+    .map(({ activity }) => activity)
   const activitiesPagination = usePagination(approvedActivities, [activities.length])
 
   return (
@@ -188,19 +201,6 @@ function BrowseActivitiesGuest({ activities, currentPage, hasMore, onLoadMore, l
 
       <div className="mt-6">
         <ListPagination pagination={activitiesPagination} />
-        {hasMore && (
-          <Button 
-            onClick={onLoadMore}
-            disabled={loading}
-            variant="outline"
-            className="mt-3 w-full sm:w-auto"
-          >
-            {loading ? 'Đang tải...' : 'Tải thêm'}
-          </Button>
-        )}
-        {!hasMore && activities.length > 0 && (
-          <p className="text-xs text-muted-foreground">Đã tải hết tất cả hoạt động</p>
-        )}
       </div>
     </>
   )
@@ -210,7 +210,7 @@ export function GuestDashboard() {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const { activities, loadMore, currentPage, hasMore, loading, applyFilters } = useRole()
+  const { activities, applyFilters } = useRole()
   const initialFilters = useMemo(() => {
     return {
       status: searchParams.get("status") || "",
@@ -275,10 +275,6 @@ export function GuestDashboard() {
           />
           <BrowseActivitiesGuest 
             activities={approvedActivities}
-            currentPage={currentPage}
-            hasMore={hasMore}
-            onLoadMore={loadMore}
-            loading={loading}
           />
         </CardContent>
       </Card>

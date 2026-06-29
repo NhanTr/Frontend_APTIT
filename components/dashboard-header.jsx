@@ -24,13 +24,6 @@ export function DashboardHeader({ title, subtitle, onMenuClick, onLoginClick, is
         </div>
       </div>
       <div className="flex items-center gap-2 sm:gap-3">
-        <div className="relative hidden lg:block">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Tìm kiếm..."
-            className="w-64 pl-9 bg-secondary border-border text-secondary-foreground placeholder:text-muted-foreground"
-          />
-        </div>
         {isAuthenticated && onLogoutClick ? (
           <Button
             onClick={onLogoutClick}

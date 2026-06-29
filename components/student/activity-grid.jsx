@@ -44,10 +44,6 @@ export function ActivityGrid({
   enrolled = [],
   onEnroll = () => {},
   onUnenroll = () => {},
-  currentPage = 0,
-  hasMore = false,
-  onLoadMore = () => {},
-  loading = false,
   enrollingActivityIds = [],
   unenrollingActivityIds = [],
   registrationStatusByActivity = {},
@@ -89,14 +85,17 @@ export function ActivityGrid({
   }
   const canCancelRegistration = (activity) => !isClosedActivity(activity) && !isOngoingActivity(activity)
   const canEnrollActivity = (activity) => getStatusKey(activity.status) === "approved"
+  const getActivityTime = (activity) => {
+    const startTime = activity.startTime ? new Date(activity.startTime).getTime() : null
+    return Number.isFinite(startTime) ? startTime : 0
+  }
   const sortedActivities = activities
     .filter((activity) => getStatusKey(activity.status) !== "cancelled")
     .map((activity, index) => ({ activity, index }))
     .sort((left, right) => {
-      const leftClosed = isClosedActivity(left.activity)
-      const rightClosed = isClosedActivity(right.activity)
+      const timeDiff = getActivityTime(right.activity) - getActivityTime(left.activity)
 
-      if (leftClosed !== rightClosed) return leftClosed ? 1 : -1
+      if (timeDiff !== 0) return timeDiff
       return left.index - right.index
     })
     .map(({ activity }) => activity)
@@ -356,14 +355,6 @@ export function ActivityGrid({
 
       <div className="mt-6">
         <ListPagination pagination={activitiesPagination} />
-        {hasMore && (
-          <Button onClick={onLoadMore} disabled={loading} variant="outline" className="mt-3 w-full sm:w-auto">
-            {loading ? "Đang tải..." : "Tải thêm"}
-          </Button>
-        )}
-        {!hasMore && activities.length > 0 && (
-          <p className="text-xs text-muted-foreground">Đã tải hết tất cả hoạt động</p>
-        )}
       </div>
     </>
   )

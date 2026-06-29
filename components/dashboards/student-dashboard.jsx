@@ -22,6 +22,16 @@ function getRegistrationActivityId(registration) {
   return registration.activityId || registration.activity_id || registration.id
 }
 
+function isVisibleStudentActivity(activity) {
+  const status = String(activity?.status || "").trim().toLowerCase()
+  const endTime = activity?.endTime ? new Date(activity.endTime).getTime() : null
+
+  return (
+    ["approved", "ongoing", "closed", "completed"].includes(status) ||
+    (Number.isFinite(endTime) && endTime <= Date.now())
+  )
+}
+
 function transformActivity(rawActivity) {
   const activity = rawActivity?.result || rawActivity
   if (!activity) return null
@@ -45,7 +55,7 @@ function transformActivity(rawActivity) {
 }
 
 export function StudentDashboard({ activeSection = "browse-activities" }) {
-  const { activities, loadMore, currentPage, hasMore, loading, enrolled, applyFilters } = useRole()
+  const { activities, enrolled, applyFilters } = useRole()
   const { initialFilters, updateUrlFilters } = useUrlFilterSync()
   const [filters, setFilters] = useState(() => initialFilters)
   const [localEnrolled, setLocalEnrolled] = useState(enrolled || [])
@@ -154,6 +164,7 @@ export function StudentDashboard({ activeSection = "browse-activities" }) {
   }
 
   const isDashboardSection = activeSection === "dashboard" || activeSection === "browse-activities"
+  const visibleActivities = activities.filter(isVisibleStudentActivity)
 
   return (
     <div className="flex flex-col gap-4 sm:gap-6">
@@ -173,15 +184,11 @@ export function StudentDashboard({ activeSection = "browse-activities" }) {
         <>
           <ActivityFilter onFilterChange={handleFilterChange} initialFilters={filters} />
           <ActivityGrid
-            activities={activities}
+            activities={visibleActivities}
             enrolled={localEnrolled}
             registrationStatusByActivity={registrationStatusByActivity}
             onEnroll={handleEnrollClick}
             onUnenroll={handleUnenrollClick}
-            currentPage={currentPage}
-            hasMore={hasMore}
-            onLoadMore={loadMore}
-            loading={loading}
             enrollingActivityIds={enrollingActivityIds}
             unenrollingActivityIds={unenrollingActivityIds}
           />

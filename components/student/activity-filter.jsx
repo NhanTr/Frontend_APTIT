@@ -48,10 +48,8 @@ export function ActivityFilter({ onFilterChange = () => {}, initialFilters = emp
   }, [initialFilters])
 
   const statusOptions = [
-    { value: "draft", label: "Bản nháp" },
-    { value: "approved", label: "Approved" },
-    { value: "cancelled", label: "Cancelled" },
-    { value: "completed", label: "Completed" },
+    { value: "approved", label: "Đã duyệt" },
+    { value: "closed", label: "Đã kết thúc" },
   ]
 
   // Notify parent of filter changes after render completes
