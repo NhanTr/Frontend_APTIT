@@ -941,7 +941,7 @@ function ActivityCard({
   const statusKey = activity.statusKey
   const canEdit = ["draft", "pending", "rejected"].includes(statusKey)
   const canDelete = ["draft", "pending"].includes(statusKey)
-  const canSubmit = statusKey === "draft"
+  const canSubmit = statusKey === "draft" || statusKey === "rejected"
   const canCancel = statusKey === "approved"
 
   return (
@@ -972,7 +972,7 @@ function ActivityCard({
             )}
             {canSubmit && (
               <Button size="sm" onClick={() => onSubmit(activity.id)} disabled={actionLoading}>
-                <Send className="mr-1 size-4" />Gửi duyệt</Button>
+                <Send className="mr-1 size-4" />{statusKey === "rejected" ? "Gửi lại" : "Gửi duyệt"}</Button>
             )}
             {canCancel && (
               <Button size="sm" variant="outline" onClick={() => onCancelRequest(activity.id)} disabled={actionLoading}>
@@ -1120,7 +1120,9 @@ function MyActivitiesPanel({ data }) {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>Sửa hoạt động</DialogTitle>
-            <DialogDescription>Chỉ có thể sửa các hoạt động bản nháp, chờ duyệt hoặc bị từ chối.</DialogDescription>
+            <DialogDescription>
+              Chỉ có thể sửa các hoạt động bản nháp, chờ duyệt hoặc bị từ chối.
+            </DialogDescription>
           </DialogHeader>
           <ActivityForm
             initialActivity={editingActivity}
